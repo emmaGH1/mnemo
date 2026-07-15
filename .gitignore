@@ -1,0 +1,47 @@
+# Dependencies
+node_modules
+/npm-debug.log*
+/yarn-error.log*
+/yarn-debug.log*
+/pnpm-debug.log*
+.pnpm-store
+
+# Next.js Build Output
+.next
+out
+
+# Production Build Output
+dist
+build
+
+# Environment Variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env*.local
+
+# Hardhat & Foundry Smart Contract Compilation
+artifacts
+cache
+out
+cache_hardhat
+broadcast
+deployments
+typechain
+typechain-types
+
+# Foundry Local Keystores
+/wallets
+
+# IDEs & System Files
+.DS_Store
+Thumbs.db
+.vscode
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

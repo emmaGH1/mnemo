@@ -1,0 +1,132 @@
+{
+  "series": "Echoes of Aria",
+  "version": 1,
+  "last_updated_episode": 4,
+  "characters": [
+    {
+      "id": "aria",
+      "name": "Aria Voss",
+      "status": "main",
+      "physical": {
+        "eye_color": {
+          "value": "blue",
+          "established_episode": 1,
+          "established_panel": 2,
+          "notes": "Described explicitly as 'ice-blue' in dialogue. Visible in close-up."
+        },
+        "hair_color": {
+          "value": "silver-white",
+          "established_episode": 1,
+          "established_panel": 1,
+          "notes": "Short bob cut. Dyes are never mentioned."
+        }
+      },
+      "clothing_defaults": {
+        "jacket": {
+          "value": "red jacket with black trim",
+          "established_episode": 1,
+          "established_panel": 1,
+          "notes": "Her signature look. Only removed in ep 3 bath scene."
+        }
+      },
+      "abilities": [
+        {
+          "name": "Echo Sight",
+          "description": "Can replay past events as visual echoes",
+          "established_episode": 1,
+          "established_panel": 8
+        }
+      ]
+    },
+    {
+      "id": "kael",
+      "name": "Kael Ryn",
+      "status": "supporting",
+      "physical": {
+        "eye_color": {
+          "value": "amber/gold",
+          "established_episode": 2,
+          "established_panel": 1
+        },
+        "hair_color": {
+          "value": "dark brown",
+          "established_episode": 2,
+          "established_panel": 1
+        },
+        "hair_length": {
+          "value": "medium, slightly messy",
+          "established_episode": 2,
+          "established_panel": 1
+        }
+      },
+      "relationships": [
+        {
+          "with": "aria",
+          "type": "former partner",
+          "established_episode": 2,
+          "established_panel": 4,
+          "notes": "They worked together at the Bureau before the incident."
+        }
+      ]
+    }
+  ],
+  "events": [
+    {
+      "id": "evt_001",
+      "title": "The Bureau Incident",
+      "episode": 1,
+      "panel_start": 10,
+      "summary": "Aria witnesses the explosion at the Bureau that kills Director Holt. She is the only survivor.",
+      "participants": ["aria"],
+      "significance": "inciting_incident"
+    },
+    {
+      "id": "evt_002",
+      "title": "Kael and Aria reunion",
+      "episode": 2,
+      "panel_start": 3,
+      "summary": "Aria encounters Kael for the first time since the Bureau Incident. Kael accuses her of being responsible.",
+      "participants": ["aria", "kael"],
+      "significance": "major"
+    },
+    {
+      "id": "evt_003",
+      "title": "Aria uses Echo Sight in the Archive",
+      "episode": 3,
+      "panel_start": 6,
+      "summary": "Aria activates Echo Sight inside the Old Archive building. The echo she replays shows Director Holt alive one hour before the explosion.",
+      "participants": ["aria"],
+      "significance": "major"
+    },
+    {
+      "id": "evt_004",
+      "title": "The Signal",
+      "episode": 4,
+      "panel_start": 2,
+      "summary": "A coded signal identical to the pre-incident frequency is detected. Aria and Kael form a temporary truce to investigate.",
+      "participants": ["aria", "kael"],
+      "significance": "major"
+    }
+  ],
+  "locations": [
+    {
+      "id": "loc_001",
+      "name": "The Bureau",
+      "status": "destroyed",
+      "first_appearance_episode": 1
+    },
+    {
+      "id": "loc_002",
+      "name": "Old Archive",
+      "status": "standing",
+      "first_appearance_episode": 3
+    },
+    {
+      "id": "loc_003",
+      "name": "Nexus City",
+      "status": "standing",
+      "first_appearance_episode": 1,
+      "notes": "Futuristic urban setting. Perpetually foggy lower districts."
+    }
+  ]
+}
