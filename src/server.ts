@@ -12,15 +12,18 @@
 //   paymentMiddleware(routes: RoutesConfig, server: x402ResourceServer, ...)
 //   routes = { "POST /mcp": { accepts: { scheme, price, network, payTo }, description } }
 //
-// Stub facilitator: when OKX credentials are absent we use a local stub whose
-// getSupported() resolves immediately with a synthetic supported-kinds list.
-// This lets initialize() succeed so the middleware can issue proper 402 responses
-// without a live OKX API connection. Verify/settle are no-ops in stub mode.
+// Facilitator selection:
+//   If OKX credentials are present AND web3.okx.com resolves via DNS →
+//     real OKXFacilitatorClient (verify/settle work for live payments).
+//   Otherwise → stub client (getSupported() succeeds locally, verify/settle throw).
+//   This lets Tests A+B run in any environment; Test C self-skips when OKX
+//   is unreachable.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import express, { type Request, type Response } from "express";
 import multer from "multer";
 import * as fs from "fs";
+import * as dns from "dns";
 import * as path from "path";
 import * as dotenv from "dotenv";
 import { z } from "zod";
@@ -58,33 +61,19 @@ const OKX_SECRET_KEY = process.env.OKX_SECRET_KEY ?? "";
 const OKX_PASSPHRASE = process.env.OKX_PASSPHRASE ?? "";
 const hasOKXCredentials = !!(OKX_API_KEY && OKX_SECRET_KEY && OKX_PASSPHRASE);
 
-if (!hasOKXCredentials) {
-  console.warn(
-    "⚠️  [x402] OKX_API_KEY / OKX_SECRET_KEY / OKX_PASSPHRASE not set.\n" +
-      "    Using stub facilitator — POST /mcp will correctly return HTTP 402\n" +
-      "    for unpaid requests, but valid payment signatures cannot be settled\n" +
-      "    until real OKX credentials are provided."
-  );
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
-// Stub facilitator (used when OKX credentials are absent)
+// Stub facilitator
 //
-// Returns a synthetic SupportedResponse so resourceServer.initialize() succeeds
-// without a live OKX API call. Verify/settle throw so genuine payments can't
-// accidentally be accepted in stub mode.
+// Used when OKX credentials are absent OR when web3.okx.com is unreachable
+// (e.g. sandbox/CI with no outbound DNS). getSupported() resolves immediately
+// so initialize() succeeds and the middleware can issue proper 402 responses.
+// verify() and settle() throw — genuine payments are never accepted in stub mode.
 // ─────────────────────────────────────────────────────────────────────────────
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const stubFacilitatorClient: any = {
   async getSupported() {
     return {
-      kinds: [
-        {
-          x402Version: 2,
-          scheme: "exact",
-          network: "eip155:196",
-        },
-      ],
+      kinds: [{ x402Version: 2, scheme: "exact", network: "eip155:196" }],
       extensions: [],
       signers: {},
     };
@@ -101,48 +90,22 @@ const stubFacilitatorClient: any = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// x402 — resource server + payment middleware
+// DNS probe — synchronous wrapper using dns.lookup callback API
 // ─────────────────────────────────────────────────────────────────────────────
-const facilitatorClient = hasOKXCredentials
-  ? new OKXFacilitatorClient({
-      apiKey: OKX_API_KEY,
-      secretKey: OKX_SECRET_KEY,
-      passphrase: OKX_PASSPHRASE,
-    })
-  : stubFacilitatorClient;
-
-// Register ExactEvmScheme for eip155:196 (X Layer mainnet).
-const resourceServer = new x402ResourceServer(facilitatorClient).register(
-  "eip155:196",
-  new ExactEvmScheme()
-);
-
-// Route config: x402 v2 shape — payTo inside accepts object.
-const x402Routes = {
-  "POST /mcp": {
-    accepts: {
-      scheme: "exact" as const,
-      price: "$0.15",
-      network: "eip155:196" as const,
-      payTo: AGENTIC_WALLET_ADDRESS,
-    },
-    description: "Webtoon continuity check — $0.15 USDT per call (X Layer)",
-  },
-};
-
-// syncFacilitatorOnStart=true: middleware calls initialize() on first use.
-// With the stub client this resolves immediately; with real OKXFacilitatorClient
-// it calls out to OKX's API to confirm supported kinds.
-const x402Middleware = paymentMiddleware(
-  x402Routes,
-  resourceServer,
-  undefined, // paywallConfig — machine-to-machine only
-  undefined, // paywall provider
-  true       // syncFacilitatorOnStart — needed for buildPaymentRequirements to work
-);
+function canReachOKX(): Promise<boolean> {
+  return new Promise((resolve) => {
+    dns.lookup("web3.okx.com", (err) => resolve(!err));
+  });
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
-// MCP server + stateless transport
+// isStubMode — exported so test-server.ts can detect sandbox environment
+// and self-skip Test C when OKX API is unreachable.
+// ─────────────────────────────────────────────────────────────────────────────
+export let isStubMode = true;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MCP server + stateless transport — built once at module load
 // ─────────────────────────────────────────────────────────────────────────────
 const mcpServer = new McpServer({
   name: "mnemo",
@@ -187,17 +150,11 @@ mcpServer.tool(
     );
 
     return {
-      content: [
-        {
-          type: "text" as const,
-          text: JSON.stringify(result, null, 2),
-        },
-      ],
+      content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
     };
   }
 );
 
-// Stateless transport — no session map.
 const mcpTransport = new StreamableHTTPServerTransport({
   sessionIdGenerator: undefined,
 });
@@ -208,12 +165,26 @@ mcpServer.connect(mcpTransport).catch((err: unknown) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Express app
+// Express app — middleware and routes wired here; x402 middleware is applied
+// lazily so the async facilitator resolution completes before first request.
 // ─────────────────────────────────────────────────────────────────────────────
 const app = express();
 app.use(express.json());
 
 const upload = multer({ storage: multer.memoryStorage() });
+
+// x402 route config (constant regardless of which facilitator is used).
+const x402Routes = {
+  "POST /mcp": {
+    accepts: {
+      scheme: "exact" as const,
+      price: "$0.15",
+      network: "eip155:196" as const,
+      payTo: AGENTIC_WALLET_ADDRESS,
+    },
+    description: "Webtoon continuity check — $0.15 USDT per call (X Layer)",
+  },
+};
 
 // ─── Health ────────────────────────────────────────────────────────────────────
 app.get("/health", (_req: Request, res: Response) => {
@@ -254,13 +225,7 @@ app.post(
       }
 
       const dialogue = req.body.dialogue as string | undefined;
-      const result = await checkContinuity(
-        canonDoc,
-        imageBase64,
-        mimeType,
-        dialogue
-      );
-
+      const result = await checkContinuity(canonDoc, imageBase64, mimeType, dialogue);
       res.json(result);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
@@ -270,53 +235,108 @@ app.post(
   }
 );
 
-// ─── POST /mcp  (x402-gated → MCP transport) ──────────────────────────────────
-app.post("/mcp", x402Middleware, async (req: Request, res: Response) => {
-  try {
-    await mcpTransport.handleRequest(req as never, res as never, req.body);
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error("[/mcp POST error]", message);
-    if (!res.headersSent) {
-      res.status(500).json({ error: message });
+// ─────────────────────────────────────────────────────────────────────────────
+// startServer() — resolves the facilitator asynchronously (DNS probe), then
+// wires the x402 middleware and starts listening. Called once at module load
+// (and re-called by test-server.ts which imports `app` and calls listen itself).
+// ─────────────────────────────────────────────────────────────────────────────
+async function startServer(): Promise<void> {
+  // Resolve facilitator
+  let facilitatorClient = stubFacilitatorClient;
+
+  if (!hasOKXCredentials) {
+    console.warn(
+      "⚠️  [x402] OKX_API_KEY / OKX_SECRET_KEY / OKX_PASSPHRASE not set.\n" +
+        "    Using stub facilitator — POST /mcp correctly returns HTTP 402 for\n" +
+        "    unpaid requests; verify/settle require real credentials."
+    );
+  } else {
+    const reachable = await canReachOKX();
+    if (reachable) {
+      console.log(
+        "[x402] OKX credentials present and web3.okx.com reachable — using real OKXFacilitatorClient."
+      );
+      facilitatorClient = new OKXFacilitatorClient({
+        apiKey: OKX_API_KEY,
+        secretKey: OKX_SECRET_KEY,
+        passphrase: OKX_PASSPHRASE,
+      });
+      isStubMode = false;
+    } else {
+      console.warn(
+        "⚠️  [x402] OKX credentials present but web3.okx.com unreachable (DNS failure).\n" +
+          "    Using stub facilitator — Tests A+B work; Test C must run on a machine\n" +
+          "    with OKX API access."
+      );
     }
   }
-});
 
-// ─── GET /mcp  (SSE / capability negotiation — no payment gate) ────────────────
-app.get("/mcp", async (req: Request, res: Response) => {
-  try {
-    await mcpTransport.handleRequest(req as never, res as never);
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error("[/mcp GET error]", message);
-    if (!res.headersSent) {
-      res.status(500).json({ error: message });
+  // Build resource server and x402 middleware with the resolved facilitator.
+  const resourceServer = new x402ResourceServer(facilitatorClient).register(
+    "eip155:196",
+    new ExactEvmScheme()
+  );
+
+  const x402Mw = paymentMiddleware(
+    x402Routes,
+    resourceServer,
+    undefined, // paywallConfig — machine-to-machine only
+    undefined, // paywall provider
+    true       // syncFacilitatorOnStart — stub resolves immediately; real client hits OKX
+  );
+
+  // ─── POST /mcp  (x402-gated → MCP transport) ────────────────────────────────
+  app.post("/mcp", x402Mw, async (req: Request, res: Response) => {
+    try {
+      await mcpTransport.handleRequest(req as never, res as never, req.body);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error("[/mcp POST error]", message);
+      if (!res.headersSent) res.status(500).json({ error: message });
     }
-  }
-});
+  });
 
-// ─── DELETE /mcp  (session teardown — no payment gate) ────────────────────────
-app.delete("/mcp", async (req: Request, res: Response) => {
-  try {
-    await mcpTransport.handleRequest(req as never, res as never);
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error("[/mcp DELETE error]", message);
-    if (!res.headersSent) {
-      res.status(500).json({ error: message });
+  // ─── GET /mcp  (SSE / capability negotiation — no payment gate) ────────────
+  app.get("/mcp", async (req: Request, res: Response) => {
+    try {
+      await mcpTransport.handleRequest(req as never, res as never);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error("[/mcp GET error]", message);
+      if (!res.headersSent) res.status(500).json({ error: message });
     }
+  });
+
+  // ─── DELETE /mcp  (session teardown — no payment gate) ────────────────────
+  app.delete("/mcp", async (req: Request, res: Response) => {
+    try {
+      await mcpTransport.handleRequest(req as never, res as never);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error("[/mcp DELETE error]", message);
+      if (!res.headersSent) res.status(500).json({ error: message });
+    }
+  });
+
+  // Start listening (skipped when imported by test-server.ts, which calls listen itself).
+  if (require.main === module) {
+    app.listen(PORT, () => {
+      console.log(`\n🎨  Mnemo API running on http://localhost:${PORT}`);
+      console.log(`     GET  /health       — liveness probe`);
+      console.log(`     POST /check        — multipart REST (ungated, local dev)`);
+      console.log(`     POST /mcp          — x402-gated MCP endpoint ($0.15 USDT, eip155:196)`);
+      console.log(`     GET  /mcp          — MCP SSE / capability negotiation`);
+      console.log(`     DELETE /mcp        — MCP session teardown\n`);
+    });
   }
-});
+}
 
-// ─── Start ─────────────────────────────────────────────────────────────────────
-app.listen(PORT, () => {
-  console.log(`\n🎨  Mnemo API running on http://localhost:${PORT}`);
-  console.log(`     GET  /health       — liveness probe`);
-  console.log(`     POST /check        — multipart REST (ungated, local dev)`);
-  console.log(`     POST /mcp          — x402-gated MCP endpoint ($0.15 USDT, eip155:196)`);
-  console.log(`     GET  /mcp          — MCP SSE / capability negotiation`);
-  console.log(`     DELETE /mcp        — MCP session teardown\n`);
-});
-
+// Export the Express app for test-server.ts to attach its own listener.
 export default app;
+
+// Kick off async initialization. Export the promise so consumers (test-server.ts)
+// can await full startup before sending requests.
+export const serverReady: Promise<void> = startServer().catch((err: unknown) => {
+  console.error("[server] Fatal startup error:", err);
+  process.exit(1);
+});
