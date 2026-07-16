@@ -4,7 +4,7 @@
 // Route table:
 //   GET  /health  — liveness probe (no payment gate)
 //   POST /check   — convenience REST, ungated (local dev / direct HTTP clients)
-//   POST /mcp     — x402 payment gate ($0.15 USDT, eip155:196) → MCP tool
+//   POST /mcp     — x402 payment gate ($0.10 USDT, eip155:196) → MCP tool
 //   GET  /mcp     — MCP SSE / GET endpoint (some MCP clients require this)
 //   DELETE /mcp   — MCP session teardown
 //
@@ -105,71 +105,100 @@ function canReachOKX(): Promise<boolean> {
 export let isStubMode = true;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// MCP server + stateless transport — built once at module load
+// MCP — per-request server + transport (stateless)
+//
+// Root cause of post-settle HTTP 500 (empty text/plain): a module-scoped
+// StreamableHTTPServerTransport was reused across requests. After the first
+// SSE/JSON-RPC exchange its stream mapping is closed; subsequent handleRequest
+// calls finish with status 500 and no body (observed locally: initialize /
+// tools/call after tools/list → 500 text/plain "").
+//
+// x402 middleware also buffers res.write/end until settle completes, which is
+// incompatible with long-lived SSE streams. enableJsonResponse:true returns a
+// single JSON body that write/end can buffer cleanly.
 // ─────────────────────────────────────────────────────────────────────────────
-const mcpServer = new McpServer({
-  name: "mnemo",
-  version: "1.0.0",
-  capabilities: { tools: {} },
-});
+function createMcpServer(): McpServer {
+  const mcpServer = new McpServer({
+    name: "mnemo",
+    version: "1.0.0",
+  });
 
-mcpServer.tool(
-  "check-continuity",
-  "Check a webtoon page image against the series canon document for continuity errors. " +
-    "Returns flags (contradictions) and canon_additions (new facts). " +
-    "Requires $0.15 USDT payment via x402 on X Layer (eip155:196).",
-  {
-    page_image_base64: z
-      .string()
-      .describe("Base64-encoded page image (PNG, JPEG, or WebP)"),
-    mime_type: z
-      .enum(["image/png", "image/jpeg", "image/webp"])
-      .describe("MIME type of the image"),
-    canon: z
-      .string()
-      .optional()
-      .describe(
-        "Optional JSON string of the CanonDoc. If omitted, the server uses its built-in data/canon.json."
-      ),
-    dialogue: z
-      .string()
-      .optional()
-      .describe("Optional raw dialogue / script text from the page"),
-  },
-  async ({ page_image_base64, mime_type, canon, dialogue }) => {
-    let canonOverride: CanonDoc | undefined;
-    if (canon) {
-      canonOverride = JSON.parse(canon) as CanonDoc;
+  mcpServer.tool(
+    "check-continuity",
+    "Check a webtoon page image against the series canon document for continuity errors. " +
+      "Returns flags (contradictions) and canon_additions (new facts). " +
+      "Requires $0.10 USDT payment via x402 on X Layer (eip155:196).",
+    {
+      page_image_base64: z
+        .string()
+        .describe("Base64-encoded page image (PNG, JPEG, or WebP)"),
+      mime_type: z
+        .enum(["image/png", "image/jpeg", "image/webp"])
+        .describe("MIME type of the image"),
+      canon: z
+        .string()
+        .optional()
+        .describe(
+          "Optional JSON string of the CanonDoc. If omitted, the server uses its built-in data/canon.json."
+        ),
+      dialogue: z
+        .string()
+        .optional()
+        .describe("Optional raw dialogue / script text from the page"),
+    },
+    async ({ page_image_base64, mime_type, canon, dialogue }) => {
+      let canonOverride: CanonDoc | undefined;
+      if (canon) {
+        canonOverride = JSON.parse(canon) as CanonDoc;
+      }
+
+      const result = await runCheck(
+        page_image_base64,
+        mime_type,
+        canonOverride,
+        dialogue
+      );
+
+      return {
+        content: [
+          { type: "text" as const, text: JSON.stringify(result, null, 2) },
+        ],
+      };
     }
+  );
 
-    const result = await runCheck(
-      page_image_base64,
-      mime_type,
-      canonOverride,
-      dialogue
-    );
+  return mcpServer;
+}
 
-    return {
-      content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
-    };
+/** Handle one MCP HTTP request with a fresh transport (must not share across requests). */
+async function handleMcpHttp(
+  req: Request,
+  res: Response,
+  parsedBody?: unknown
+): Promise<void> {
+  const mcpServer = createMcpServer();
+  const transport = new StreamableHTTPServerTransport({
+    sessionIdGenerator: undefined,
+    enableJsonResponse: true,
+  });
+  await mcpServer.connect(transport);
+  try {
+    await transport.handleRequest(req as never, res as never, parsedBody);
+  } finally {
+    await transport.close().catch((err: unknown) => {
+      console.error("[MCP] transport.close error:", err);
+    });
   }
-);
-
-const mcpTransport = new StreamableHTTPServerTransport({
-  sessionIdGenerator: undefined,
-});
-
-mcpServer.connect(mcpTransport).catch((err: unknown) => {
-  console.error("[MCP] Failed to connect server to transport:", err);
-  process.exit(1);
-});
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Express app — middleware and routes wired here; x402 middleware is applied
 // lazily so the async facilitator resolution completes before first request.
 // ─────────────────────────────────────────────────────────────────────────────
 const app = express();
-app.use(express.json());
+// Continuity checks send base64 page images — default 100kb is too small.
+app.use(express.json({ limit: "15mb" }));
+
 
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -178,11 +207,11 @@ const x402Routes = {
   "POST /mcp": {
     accepts: {
       scheme: "exact" as const,
-      price: "$0.15",
+      price: "$0.10",
       network: "eip155:196" as const,
       payTo: AGENTIC_WALLET_ADDRESS,
     },
-    description: "Webtoon continuity check — $0.15 USDT per call (X Layer)",
+    description: "Webtoon continuity check — $0.10 USDT per call (X Layer)",
   },
 };
 
@@ -288,10 +317,12 @@ async function startServer(): Promise<void> {
   // ─── POST /mcp  (x402-gated → MCP transport) ────────────────────────────────
   app.post("/mcp", x402Mw, async (req: Request, res: Response) => {
     try {
-      await mcpTransport.handleRequest(req as never, res as never, req.body);
+      await handleMcpHttp(req, res, req.body);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
+      const stack = err instanceof Error ? err.stack : undefined;
       console.error("[/mcp POST error]", message);
+      if (stack) console.error(stack);
       if (!res.headersSent) res.status(500).json({ error: message });
     }
   });
@@ -299,10 +330,12 @@ async function startServer(): Promise<void> {
   // ─── GET /mcp  (SSE / capability negotiation — no payment gate) ────────────
   app.get("/mcp", async (req: Request, res: Response) => {
     try {
-      await mcpTransport.handleRequest(req as never, res as never);
+      await handleMcpHttp(req, res);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
+      const stack = err instanceof Error ? err.stack : undefined;
       console.error("[/mcp GET error]", message);
+      if (stack) console.error(stack);
       if (!res.headersSent) res.status(500).json({ error: message });
     }
   });
@@ -310,10 +343,12 @@ async function startServer(): Promise<void> {
   // ─── DELETE /mcp  (session teardown — no payment gate) ────────────────────
   app.delete("/mcp", async (req: Request, res: Response) => {
     try {
-      await mcpTransport.handleRequest(req as never, res as never);
+      await handleMcpHttp(req, res);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
+      const stack = err instanceof Error ? err.stack : undefined;
       console.error("[/mcp DELETE error]", message);
+      if (stack) console.error(stack);
       if (!res.headersSent) res.status(500).json({ error: message });
     }
   });
@@ -324,7 +359,7 @@ async function startServer(): Promise<void> {
       console.log(`\n🎨  Mnemo API running on http://localhost:${PORT}`);
       console.log(`     GET  /health       — liveness probe`);
       console.log(`     POST /check        — multipart REST (ungated, local dev)`);
-      console.log(`     POST /mcp          — x402-gated MCP endpoint ($0.15 USDT, eip155:196)`);
+      console.log(`     POST /mcp          — x402-gated MCP endpoint ($0.10 USDT, eip155:196)`);
       console.log(`     GET  /mcp          — MCP SSE / capability negotiation`);
       console.log(`     DELETE /mcp        — MCP session teardown\n`);
     });
