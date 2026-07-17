@@ -314,8 +314,21 @@ async function startServer(): Promise<void> {
     true       // syncFacilitatorOnStart — stub resolves immediately; real client hits OKX
   );
 
-  // ─── POST /mcp  (x402-gated → MCP transport) ────────────────────────────────
-  app.post("/mcp", x402Mw, async (req: Request, res: Response) => {
+  // ─── POST /mcp  (Accept-header fix → x402-gated → MCP transport) ──────────────────
+  app.post(
+    "/mcp",
+    (req: Request, _res: Response, next) => {
+      const accept = req.headers.accept || "";
+      if (!accept.includes("text/event-stream")) {
+        req.headers.accept = accept
+          ? `${accept}, text/event-stream`
+          : "application/json, text/event-stream";
+      }
+      next();
+    },
+    x402Mw,
+    async (req: Request, res: Response) => {
+
     try {
       await handleMcpHttp(req, res, req.body);
     } catch (err: unknown) {
@@ -327,8 +340,19 @@ async function startServer(): Promise<void> {
     }
   });
 
-  // ─── GET /mcp  (SSE / capability negotiation — no payment gate) ────────────
-  app.get("/mcp", async (req: Request, res: Response) => {
+  // ─── GET /mcp  (Accept-header fix → MCP transport) ────────────────────────
+  app.get(
+    "/mcp",
+    (req: Request, _res: Response, next) => {
+      const accept = req.headers.accept || "";
+      if (!accept.includes("text/event-stream")) {
+        req.headers.accept = accept
+          ? `${accept}, text/event-stream`
+          : "application/json, text/event-stream";
+      }
+      next();
+    },
+    async (req: Request, res: Response) => {
     try {
       await handleMcpHttp(req, res);
     } catch (err: unknown) {
@@ -340,8 +364,19 @@ async function startServer(): Promise<void> {
     }
   });
 
-  // ─── DELETE /mcp  (session teardown — no payment gate) ────────────────────
-  app.delete("/mcp", async (req: Request, res: Response) => {
+  // ─── DELETE /mcp  (Accept-header fix → MCP transport) ─────────────────────
+  app.delete(
+    "/mcp",
+    (req: Request, _res: Response, next) => {
+      const accept = req.headers.accept || "";
+      if (!accept.includes("text/event-stream")) {
+        req.headers.accept = accept
+          ? `${accept}, text/event-stream`
+          : "application/json, text/event-stream";
+      }
+      next();
+    },
+    async (req: Request, res: Response) => {
     try {
       await handleMcpHttp(req, res);
     } catch (err: unknown) {
