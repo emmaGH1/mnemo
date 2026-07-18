@@ -203,6 +203,9 @@ app.use(express.json({ limit: "15mb" }));
 const upload = multer({ storage: multer.memoryStorage() });
 
 // x402 route config (constant regardless of which facilitator is used).
+// tokenAddress is the USDT contract on X Layer (eip155:196).
+const USDT_X_LAYER = "0x779ded0c9e1022225f8e0630b35a9b54be713736" as const;
+
 const x402Routes = {
   "POST /mcp": {
     accepts: {
@@ -210,6 +213,7 @@ const x402Routes = {
       price: "$0.10",
       network: "eip155:196" as const,
       payTo: AGENTIC_WALLET_ADDRESS,
+      tokenAddress: USDT_X_LAYER,
     },
     description: "Webtoon continuity check — $0.10 USDT per call (X Layer)",
   },
@@ -315,15 +319,15 @@ async function startServer(): Promise<void> {
   );
 
   // ─── POST /mcp  (Accept-header fix → x402-gated → MCP transport) ──────────────────
+  //
+  // Accept-header fix: x402 discovery probes may send any Accept value;
+  // MCP's handlePostRequest requires BOTH "application/json" AND
+  // "text/event-stream" — force both so the MCP transport never 406s before
+  // the x402 middleware can return 402 for unpaid requests.
   app.post(
     "/mcp",
     (req: Request, _res: Response, next) => {
-      const accept = req.headers.accept || "";
-      if (!accept.includes("text/event-stream")) {
-        req.headers.accept = accept
-          ? `${accept}, text/event-stream`
-          : "application/json, text/event-stream";
-      }
+      req.headers.accept = "application/json, text/event-stream";
       next();
     },
     x402Mw,
@@ -340,16 +344,16 @@ async function startServer(): Promise<void> {
     }
   });
 
-  // ─── GET /mcp  (Accept-header fix → MCP transport) ────────────────────────
+  // ─── GET /mcp  (x402 discovery probe fix → MCP transport) ──────────────────
+  //
+  // OKX x402-check may send GET /mcp without text/event-stream in Accept.
+  // MCP's GET handler (handleGetRequest) hard-requires text/event-stream and
+  // would return 406 without this fix. Also force application/json so the
+  // Accept header is fully MCP-conformant for both GET and POST paths.
   app.get(
     "/mcp",
     (req: Request, _res: Response, next) => {
-      const accept = req.headers.accept || "";
-      if (!accept.includes("text/event-stream")) {
-        req.headers.accept = accept
-          ? `${accept}, text/event-stream`
-          : "application/json, text/event-stream";
-      }
+      req.headers.accept = "application/json, text/event-stream";
       next();
     },
     async (req: Request, res: Response) => {
