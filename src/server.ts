@@ -217,6 +217,16 @@ const x402Routes = {
     },
     description: "Webtoon continuity check — $0.10 USDT per call (X Layer)",
   },
+  "GET /mcp": {
+    accepts: {
+      scheme: "exact" as const,
+      price: "$0.10",
+      network: "eip155:196" as const,
+      payTo: AGENTIC_WALLET_ADDRESS,
+      tokenAddress: USDT_X_LAYER,
+    },
+    description: "MCP discovery / SSE endpoint — $0.10 USDT per call (X Layer)",
+  },
 };
 
 // ─── Health ────────────────────────────────────────────────────────────────────
@@ -356,6 +366,7 @@ async function startServer(): Promise<void> {
       req.headers.accept = "application/json, text/event-stream";
       next();
     },
+    x402Mw,
     async (req: Request, res: Response) => {
     try {
       await handleMcpHttp(req, res);
