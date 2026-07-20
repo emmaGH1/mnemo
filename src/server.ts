@@ -342,6 +342,7 @@ async function startServer(): Promise<void> {
     },
     x402Mw,
     async (req: Request, res: Response) => {
+      console.log("[/mcp POST] req.headers.accept ===>", JSON.stringify(req.headers.accept));
 
     try {
       await handleMcpHttp(req, res, req.body);
