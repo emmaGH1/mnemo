@@ -338,11 +338,18 @@ async function startServer(): Promise<void> {
     "/mcp",
     (req: Request, _res: Response, next) => {
       req.headers.accept = "application/json, text/event-stream";
+      for (let i = 0; i < req.rawHeaders.length; i += 2) {
+        if (req.rawHeaders[i].toLowerCase() === "accept") {
+          req.rawHeaders[i + 1] = "application/json, text/event-stream";
+          next();
+          return;
+        }
+      }
+      req.rawHeaders.push("accept", "application/json, text/event-stream");
       next();
     },
     x402Mw,
     async (req: Request, res: Response) => {
-      console.log("[/mcp POST] req.headers.accept ===>", JSON.stringify(req.headers.accept));
 
     try {
       await handleMcpHttp(req, res, req.body);
@@ -365,6 +372,14 @@ async function startServer(): Promise<void> {
     "/mcp",
     (req: Request, _res: Response, next) => {
       req.headers.accept = "application/json, text/event-stream";
+      for (let i = 0; i < req.rawHeaders.length; i += 2) {
+        if (req.rawHeaders[i].toLowerCase() === "accept") {
+          req.rawHeaders[i + 1] = "application/json, text/event-stream";
+          next();
+          return;
+        }
+      }
+      req.rawHeaders.push("accept", "application/json, text/event-stream");
       next();
     },
     x402Mw,
@@ -386,9 +401,18 @@ async function startServer(): Promise<void> {
     (req: Request, _res: Response, next) => {
       const accept = req.headers.accept || "";
       if (!accept.includes("text/event-stream")) {
-        req.headers.accept = accept
+        const forced = accept
           ? `${accept}, text/event-stream`
           : "application/json, text/event-stream";
+        req.headers.accept = forced;
+        for (let i = 0; i < req.rawHeaders.length; i += 2) {
+          if (req.rawHeaders[i].toLowerCase() === "accept") {
+            req.rawHeaders[i + 1] = forced;
+            next();
+            return;
+          }
+        }
+        req.rawHeaders.push("accept", forced);
       }
       next();
     },
