@@ -1,0 +1,66 @@
+{
+  "series": "lore-olympus",
+  "version": 1,
+  "last_updated_episode": 2,
+  "characters": [
+    {
+      "id": "persephone",
+      "name": "Persephone",
+      "status": "main",
+      "physical": {
+        "skin_color": { "value": "pink", "established_episode": 1, "established_panel": 5 },
+        "hair_color": { "value": "pink", "established_episode": 1, "established_panel": 5 }
+      },
+      "relationships": [
+        { "with": "hades", "type": "romantic interest", "established_episode": 1, "established_panel": 5, "notes": "Intimate close contact shown at the party" }
+      ]
+    },
+    {
+      "id": "hades",
+      "name": "Hades",
+      "status": "main",
+      "physical": {
+        "skin_color": { "value": "blue", "established_episode": 1, "established_panel": 5 },
+        "hair_color": { "value": "blue", "established_episode": 1, "established_panel": 5 },
+        "eye_color": { "value": "gold; turns red when angry", "established_episode": 1, "established_panel": 5, "notes": "Gold in neutral state (ep 1 panel 5), red in anger (ep 1 panel 30)" }
+      },
+      "clothing_defaults": {
+        "usual_attire": { "value": "dark formal suit", "established_episode": 1, "established_panel": 5 }
+      }
+    },
+    {
+      "id": "minthe",
+      "name": "Minthe",
+      "status": "supporting",
+      "physical": {
+        "skin_color": { "value": "red", "established_episode": 1, "established_panel": 15 }
+      },
+      "relationships": [
+        { "with": "hades", "type": "complicated / casual", "established_episode": 1, "established_panel": 15, "notes": "Hades texts her 'Di mana kau?' (Where are you?)" }
+      ]
+    },
+    {
+      "id": "hera",
+      "name": "Hera",
+      "status": "supporting",
+      "physical": {
+        "skin_color": { "value": "golden / yellow", "established_episode": 1, "established_panel": 50 },
+        "hair_color": { "value": "orange / amber", "established_episode": 1, "established_panel": 50 },
+        "eye_color": { "value": "blue", "established_episode": 1, "established_panel": 50 },
+        "distinguishing_marks": { "value": "beauty mark under left eye", "established_episode": 1, "established_panel": 50 }
+      }
+    }
+  ],
+  "events": [
+    {
+      "id": "evt_001",
+      "title": "The party — Hades and Persephone meet",
+      "episode": 1,
+      "panel_start": 5,
+      "summary": "At Zeus's party, Hades and Persephone share an intimate close moment; Hades is simultaneously texting Minthe, establishing the love triangle.",
+      "participants": ["hades", "persephone", "minthe"],
+      "significance": "inciting_incident"
+    }
+  ],
+  "locations": []
+}

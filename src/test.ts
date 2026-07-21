@@ -6,13 +6,16 @@ import * as fs from "fs";
 import * as path from "path";
 import * as dotenv from "dotenv";
 import { checkContinuity } from "./checker.js";
+import { loadCanon } from "./resolve-canon.js";
 import type { CanonDoc, ContinuityCheckResult } from "./types.js";
 
 dotenv.config();
 
 // ─── Paths ────────────────────────────────────────────────────────────────────
 const ROOT = path.resolve(__dirname, "..");
-const CANON_PATH = path.join(ROOT, "data", "canon.json");
+
+// Load canon — uses data/canon.json (legacy) or pass a series_id arg to use file-per-series
+const seriesId = process.argv[2] || undefined;
 
 // The two test images (copied into test-images/ by the setup step below)
 const CLEAN_IMAGE_PATH = path.join(ROOT, "test-images", "page_clean.png");
@@ -70,8 +73,8 @@ async function main(): Promise<void> {
   console.log("─".repeat(70));
 
   // Load canon
-  const canonDoc: CanonDoc = JSON.parse(fs.readFileSync(CANON_PATH, "utf-8"));
-  console.log(`\n📖  Loaded canon: "${canonDoc.series}" (last ep: ${canonDoc.last_updated_episode})`);
+  const canonDoc: CanonDoc = loadCanon(seriesId);
+  console.log(`\n📖  Loaded canon: "${canonDoc.series}" (last ep: ${canonDoc.last_updated_episode})${seriesId ? ` [series: ${seriesId}]` : " [legacy]"}`);
 
   // ── Test 1: Clean page (no contradiction expected) ──────────────────────
   console.log("\n⏳  Running TEST 1 — Clean page (expect empty flags)...");

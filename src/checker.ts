@@ -21,10 +21,12 @@ Your job, in order:
 CRITICAL RULES:
 - Uncertain is NOT a flag. If you're not fully confident it's a contradiction, do not flag it. A false positive destroys trust in this tool completely — err toward silence.
 - Never treat art style variance, angle, or lighting as a contradiction (e.g. hair looking darker in a night scene is not a hair color change).
+- LIGHTING IS NOT A CONTRADICTION: dramatic lighting, shadow, mood tints, and screen effects legitimately shift how a color renders on the page. A shade shift within the SAME color family is never a contradiction (e.g. dark blue vs teal-blue vs navy are all "blue"; bright pink vs pale pink vs magenta are all "pink"; crimson vs maroon are both "red"). Only flag when the color family itself clearly differs (e.g. blue → green, pink → white, red → black) under well-lit conditions that leave no doubt.
 - ABSENCE IS NOT A CONTRADICTION: If a previously established feature (scar, mark, accessory, etc.) is simply not visible in this panel — due to camera angle, character facing away, hair covering it, panel cropping, or the feature just not being the focus — this is NOT a flag. Only flag a feature as contradicted if the page CLEARLY AND UNAMBIGUOUSLY shows the area where the feature should be, in a way that leaves no reasonable doubt, and the feature is absent or different (e.g., a clear close-up of the exact cheek where a scar should be, showing unmarked skin). When in doubt about whether the feature was even in view, do not flag.
 - OBSERVABLE VS. ABSENCE — SEVERITY GATING: Distinguish sharply between two types of potential issues: (1) DIRECTLY OBSERVABLE contradictions — the attribute is positively, unambiguously visible on this page and clearly differs from canon (e.g. both eyes are fully visible and are a different color). These are the only cases eligible for HIGH severity. (2) ABSENCE-BASED assumptions — you are inferring something is wrong solely because you do not see evidence of it on the page. This is NEVER grounds for any flag, not even low severity. If your reasoning is "I don't see the scar, therefore it may be missing," that is an absence-based assumption — do not flag it.
 - SEVERITY RUBRIC — use this consistently: HIGH = directly observable attribute that unambiguously contradicts an established canon value; MEDIUM = a stated fact in dialogue or text directly conflicts with a canon event or relationship; LOW = a plausible but less certain discrepancy where some interpretive doubt remains (use sparingly).
-- CANON ADDITIONS — COMPLETENESS REQUIREMENT: Only include an entry in canon_additions if you can populate ALL of its fields with specific, concrete values directly observed on this exact page — including the correct episode and panel numbers for this page (not guessed or inferred from other pages). If you cannot confidently fill in every field with values you directly observed here, omit that entry entirely. An incomplete or partially guessed entry is worse than no entry.
+- DIALOGUE — EXPLICIT STATEMENTS ONLY: a dialogue-based flag requires the text to EXPLICITLY and unambiguously state a fact that directly conflicts with canon (e.g. "we met for the first time last week" when canon says they met years earlier). Do NOT flag based on what dialogue implies, suggests, or makes you infer about history — implications, hyperbole, figures of speech, and partial context are not contradictions. Dialogue you cannot fully read or translate is never evidence. When in doubt, treat dialogue as new context for canon_additions, not as a conflict.
+- CANON ADDITIONS — COMPLETENESS REQUIREMENT: Only include an entry in canon_additions if you can populate ALL of its fields with specific, concrete values directly observed on this exact page. If the caller provides this page's episode/panel numbers, use those verbatim in the ep/panel fields. If they are NOT provided, leave ep and panel as 0 — never guess or infer them from other pages. If you cannot confidently fill in every other field with values you directly observed here, omit that entry entirely. An incomplete or partially guessed entry is worse than no entry.
 - CANON ADDITIONS — NO DUPLICATES: Do not propose an addition for any attribute, relationship, or event that is already present in the canon doc, even if it appears again on this page. Only propose additions for things genuinely new to canon.
 - canon_additions: [] is correct and expected on most pages. Empty is the right answer when there is nothing new and fully observable.
 - Frame every flag as something for the artist to review, never as an automatic correction. You are not the final judge — they are.
@@ -109,6 +111,8 @@ function getModel(apiKey: string) {
  * @param mimeType       - MIME type of the image (default: "image/png").
  * @param dialogueText   - Optional raw dialogue/script text from this page.
  * @param apiKey         - Gemini API key (falls back to process.env.GEMINI_API_KEY).
+ * @param epNumber       - Optional episode number of this page (used verbatim in canon_additions).
+ * @param panelNumber    - Optional panel number of this page (used verbatim in canon_additions).
  * @returns              - Parsed { flags, canon_additions } result.
  */
 export async function checkContinuity(
@@ -116,7 +120,9 @@ export async function checkContinuity(
   pageImageBase64: string,
   mimeType: "image/png" | "image/jpeg" | "image/webp" = "image/png",
   dialogueText?: string,
-  apiKey: string = process.env.GEMINI_API_KEY ?? ""
+  apiKey: string = process.env.GEMINI_API_KEY ?? "",
+  epNumber?: number,
+  panelNumber?: number
 ): Promise<ContinuityCheckResult> {
   if (!apiKey) {
     throw new Error(
@@ -126,10 +132,15 @@ export async function checkContinuity(
 
   const model = getModel(apiKey);
 
+  const pageLocation =
+    epNumber != null || panelNumber != null
+      ? `\n\nThis page is episode ${epNumber ?? "?"}, panel ${panelNumber ?? "?"}. Use these numbers verbatim in any canon_additions ep/panel fields.`
+      : "";
+
   const result = await model.generateContent([
     {
       text: `Canon doc:\n${JSON.stringify(canonDoc, null, 2)}\n\nDialogue/script for this page:\n${dialogueText ?? "(none provided)"
-        }`,
+        }${pageLocation}`,
     },
     {
       inlineData: {

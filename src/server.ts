@@ -22,7 +22,6 @@
 
 import express, { type Request, type Response } from "express";
 import multer from "multer";
-import * as fs from "fs";
 import * as dns from "dns";
 import * as path from "path";
 import * as dotenv from "dotenv";
@@ -42,7 +41,8 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 
 // ── Local imports ──────────────────────────────────────────────────────────────
 import { checkContinuity } from "./checker.js";
-import { runCheck, DEFAULT_CANON_PATH } from "./check-handler.js";
+import { runCheck } from "./check-handler.js";
+import { loadCanon, listSeries } from "./resolve-canon.js";
 import type { CanonDoc } from "./types.js";
 
 dotenv.config();
@@ -139,14 +139,30 @@ function createMcpServer(): McpServer {
         .string()
         .optional()
         .describe(
-          "Optional JSON string of the CanonDoc. If omitted, the server uses its built-in data/canon.json."
+          "Optional JSON string of the CanonDoc. If omitted, the server loads from data/canon.json or data/series/<series_id>/canon.json."
+        ),
+      series_id: z
+        .string()
+        .optional()
+        .describe(
+          "Optional series identifier to load canon from data/series/<id>/canon.json. Ignored if canon is provided."
         ),
       dialogue: z
         .string()
         .optional()
         .describe("Optional raw dialogue / script text from the page"),
+      ep_number: z
+        .number()
+        .int()
+        .optional()
+        .describe("Optional episode number of this page (used in canon_additions)"),
+      panel_number: z
+        .number()
+        .int()
+        .optional()
+        .describe("Optional panel number of this page (used in canon_additions)"),
     },
-    async ({ page_image_base64, mime_type, canon, dialogue }) => {
+    async ({ page_image_base64, mime_type, canon, series_id, dialogue, ep_number, panel_number }) => {
       let canonOverride: CanonDoc | undefined;
       if (canon) {
         canonOverride = JSON.parse(canon) as CanonDoc;
@@ -156,7 +172,10 @@ function createMcpServer(): McpServer {
         page_image_base64,
         mime_type,
         canonOverride,
-        dialogue
+        dialogue,
+        series_id,
+        ep_number,
+        panel_number
       );
 
       return {
@@ -231,7 +250,11 @@ const x402Routes = {
 
 // ─── Health ────────────────────────────────────────────────────────────────────
 app.get("/health", (_req: Request, res: Response) => {
-  res.json({ status: "ok", model: "gemini-2.5-flash" });
+  res.json({
+    status: "ok",
+    model: "gemini-2.5-flash",
+    series: listSeries(),
+  });
 });
 
 // ─── POST /check  (ungated, local dev convenience) ────────────────────────────
@@ -254,17 +277,9 @@ app.post(
       let canonDoc: CanonDoc;
       if (req.body.canon) {
         canonDoc = JSON.parse(req.body.canon as string) as CanonDoc;
-      } else if (fs.existsSync(DEFAULT_CANON_PATH)) {
-        canonDoc = JSON.parse(
-          fs.readFileSync(DEFAULT_CANON_PATH, "utf-8")
-        ) as CanonDoc;
       } else {
-        res.status(400).json({
-          error:
-            "No canon doc provided and no default canon.json found. " +
-            "POST with `canon` field or add data/canon.json.",
-        });
-        return;
+        const seriesId = (req.body.series_id as string) || undefined;
+        canonDoc = loadCanon(seriesId);
       }
 
       const dialogue = req.body.dialogue as string | undefined;

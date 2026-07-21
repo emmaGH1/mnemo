@@ -35,6 +35,9 @@ typechain-types
 # Foundry Local Keystores
 /wallets
 
+# Scraped page images (too large for git)
+data/series/*/pages/
+
 # IDEs & System Files
 .DS_Store
 Thumbs.db
