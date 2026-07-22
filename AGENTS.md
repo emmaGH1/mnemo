@@ -36,16 +36,16 @@ Always read `.progress/checkpoint.json` first to know exactly where we stopped.
 - Keep this file updated with new build/test commands as they're added
 - Update checkpoint.json after each completed step
 
-## Demo site
+## Frontend
 
-The demo-site/ directory is a separate Next.js project for the premium demo website.
+The frontend/ directory is a separate Next.js project for the premium marketing/demo website.
 
 ```bash
-cd demo-site
+cd frontend
 npm run dev          # Start Next.js on port 3001
 npm run build        # Production build
 ```
 
 The API rewrites to localhost:3000 (the Express server). Start both: 
-npm run dev in both root and demo-site/.
+npm run dev in both root and frontend/.
 
