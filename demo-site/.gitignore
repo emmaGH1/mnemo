@@ -1,0 +1,4 @@
+# See parent .gitignore for main repo settings
+node_modules/
+.next/
+out/

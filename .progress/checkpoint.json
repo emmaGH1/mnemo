@@ -1,0 +1,28 @@
+{
+  "phase": "4",
+  "phase_name": "Demo video prep",
+  "status": "complete",
+  "completed": {
+    "4.1": "End-to-end verified: Express on :3000, Next.js builds, all APIs respond correctly",
+    "4.2": "Demo script written — scripts/demo-script.md (130-sec full version + 60-sec cut)",
+    "4.3": "Temp logs cleaned, stale processes killed"
+  },
+  "key_urls": {
+    "demo_site": "http://localhost:3001",
+    "express_api": "http://localhost:3000",
+    "health": "http://localhost:3000/health",
+    "alert_log": "http://localhost:3000/demo/alert-log?series_id=lore-olympus",
+    "checker_api": "POST http://localhost:3000/check (multipart: page_image + series_id=lore-olympus)"
+  },
+  "running_the_demo": {
+    "terminal_1": "cd mnemo && npm run dev",
+    "terminal_2": "cd mnemo/demo-site && npm run dev",
+    "browser": "http://localhost:3001"
+  },
+  "next_steps_for_user": [
+    "Record demo video following scripts/demo-script.md",
+    "Deploy Express API to hosting (Railway / DigitalOcean / Vercel?)",
+    "Deploy demo site to Vercel (free)",
+    "Submit to OKX.AI Hackathon"
+  ]
+}

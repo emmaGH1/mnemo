@@ -1,0 +1,236 @@
+{
+  "series_id": "lore-olympus",
+  "watched_since_episode": 3,
+  "alerts": [
+    {
+      "episode": 3,
+      "panel": 1,
+      "page_file": "ep003_p01.png",
+      "flags": [],
+      "canon_additions": [
+        {
+          "type": "attribute",
+          "data": {
+            "field": "distinguishing_marks",
+            "value": "freckles on nose/cheek",
+            "ep": 3,
+            "panel": 1
+          }
+        }
+      ],
+      "checked_at": "2026-07-21T16:43:17.755Z"
+    },
+    {
+      "episode": 3,
+      "panel": 5,
+      "page_file": "ep003_p05.png",
+      "flags": [],
+      "canon_additions": [
+        {
+          "type": "attribute",
+          "data": {
+            "field": "clothing",
+            "value": "pink dress/top",
+            "ep": 3,
+            "panel": 5
+          }
+        }
+      ],
+      "checked_at": "2026-07-21T16:43:23.887Z"
+    },
+    {
+      "episode": 3,
+      "panel": 8,
+      "page_file": "ep003_p08.png",
+      "flags": [],
+      "canon_additions": [
+        {
+          "type": "attribute",
+          "data": {
+            "field": "hair_color",
+            "value": "dark",
+            "ep": 3,
+            "panel": 8
+          }
+        },
+        {
+          "type": "attribute",
+          "data": {
+            "field": "eye_color",
+            "value": "yellow",
+            "ep": 3,
+            "panel": 8
+          }
+        },
+        {
+          "type": "attribute",
+          "data": {
+            "field": "distinguishing_marks",
+            "value": "pointed ears",
+            "ep": 3,
+            "panel": 8
+          }
+        }
+      ],
+      "checked_at": "2026-07-21T16:43:27.802Z"
+    },
+    {
+      "episode": 3,
+      "panel": 12,
+      "page_file": "ep003_p12.jpg",
+      "flags": [],
+      "canon_additions": [
+        {
+          "type": "attribute",
+          "data": {
+            "field": "visual thought representation",
+            "value": "pink/red energy emanating from Hades's head, forming a cloud-like effect",
+            "ep": 3,
+            "panel": 12
+          }
+        },
+        {
+          "type": "attribute",
+          "data": {
+            "field": "internal monologue",
+            "value": "questions 'Who is she?'",
+            "ep": 3,
+            "panel": 12
+          }
+        }
+      ],
+      "checked_at": "2026-07-21T16:43:35.681Z"
+    },
+    {
+      "episode": 3,
+      "panel": 15,
+      "page_file": "ep003_p15.jpg",
+      "flags": [],
+      "canon_additions": [],
+      "checked_at": "2026-07-21T16:43:41.721Z"
+    },
+    {
+      "episode": 3,
+      "panel": 22,
+      "page_file": "ep003_p22.jpg",
+      "flags": [
+        {
+          "severity": "high",
+          "character": "Hera",
+          "field": "skin_color",
+          "canon_value": "golden / yellow",
+          "new_value": "purple",
+          "explanation": "Hera's skin color is depicted as purple, which is a different color family from the established golden/yellow. This is a direct, unambiguous visual contradiction.",
+          "ep_ref": 1,
+          "panel_ref": 50
+        },
+        {
+          "severity": "high",
+          "character": "Hera",
+          "field": "hair_color",
+          "canon_value": "orange / amber",
+          "new_value": "dark purple / black",
+          "explanation": "Hera's hair color is depicted as dark purple/black, which is a different color family from the established orange/amber. This is a direct, unambiguous visual contradiction.",
+          "ep_ref": 1,
+          "panel_ref": 50
+        }
+      ],
+      "canon_additions": [
+        {
+          "type": "relationship",
+          "data": {
+            "field": "mother",
+            "value": "Demeter",
+            "ep": 3,
+            "panel": 22
+          }
+        },
+        {
+          "type": "attribute",
+          "data": {
+            "field": "title",
+            "value": "Goddess of Spring",
+            "ep": 3,
+            "panel": 22
+          }
+        },
+        {
+          "type": "character",
+          "data": {
+            "field": "name",
+            "value": "Unknown Brown-Skinned Character",
+            "ep": 3,
+            "panel": 22
+          }
+        },
+        {
+          "type": "attribute",
+          "data": {
+            "field": "skin_color",
+            "value": "brown",
+            "ep": 3,
+            "panel": 22
+          }
+        },
+        {
+          "type": "attribute",
+          "data": {
+            "field": "hair_color",
+            "value": "dark brown / black",
+            "ep": 3,
+            "panel": 22
+          }
+        }
+      ],
+      "checked_at": "2026-07-21T16:46:35.987Z"
+    },
+    {
+      "episode": 3,
+      "panel": 30,
+      "page_file": "ep003_p30.jpg",
+      "flags": [
+        {
+          "severity": "high",
+          "character": "Hades",
+          "field": "eye_color",
+          "canon_value": "gold; turns red when angry",
+          "new_value": "white/light grey",
+          "explanation": "Hades's eyes are depicted as white/light grey in this panel, which contradicts the established neutral eye color of gold or angry state of red.",
+          "ep_ref": 1,
+          "panel_ref": 5
+        },
+        {
+          "severity": "high",
+          "character": "Hades",
+          "field": "usual_attire",
+          "canon_value": "dark formal suit",
+          "new_value": "light-colored suit jacket",
+          "explanation": "Hades is wearing a light-colored suit jacket, which contradicts his established usual attire of a dark formal suit.",
+          "ep_ref": 1,
+          "panel_ref": 5
+        }
+      ],
+      "canon_additions": [
+        {
+          "type": "attribute",
+          "data": {
+            "field": "hair_length",
+            "value": "long",
+            "ep": 3,
+            "panel": 30
+          }
+        }
+      ],
+      "checked_at": "2026-07-21T16:46:46.458Z"
+    }
+  ],
+  "total_flags": 4,
+  "total_additions": 13,
+  "stats": {
+    "pages_checked": 7,
+    "pages_with_flags": 2,
+    "pages_with_additions": 6,
+    "pages_clean": 1
+  },
+  "last_checked": "2026-07-21T16:47:23.047Z"
+}

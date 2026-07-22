@@ -93,6 +93,7 @@ function getModel(apiKey: string) {
     systemInstruction: SYSTEM_PROMPT,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     generationConfig: {
+      temperature: 0.2,
       responseMimeType: "application/json",
       responseSchema,
     } as any,

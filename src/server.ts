@@ -23,6 +23,7 @@
 import express, { type Request, type Response } from "express";
 import multer from "multer";
 import * as dns from "dns";
+import * as fs from "fs";
 import * as path from "path";
 import * as dotenv from "dotenv";
 import { z } from "zod";
@@ -42,7 +43,7 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 // ── Local imports ──────────────────────────────────────────────────────────────
 import { checkContinuity } from "./checker.js";
 import { runCheck } from "./check-handler.js";
-import { loadCanon, listSeries } from "./resolve-canon.js";
+import { loadCanon, listSeries, seriesDir as resolveCanonDir } from "./resolve-canon.js";
 import type { CanonDoc } from "./types.js";
 
 dotenv.config();
@@ -186,6 +187,84 @@ function createMcpServer(): McpServer {
     }
   );
 
+  mcpServer.tool(
+    "register-series",
+    "Register a webtoon series for automatic continuity monitoring. " +
+      "Returns series info and current alert count. Watcher runs in background.",
+    {
+      series_id: z.string().describe("Series identifier (e.g. 'lore-olympus')"),
+      url: z.string().optional().describe("Webtoon URL to scrape (not yet implemented)"),
+    },
+    async ({ series_id }) => {
+      const canon = loadCanon(series_id);
+      const episodesPath = path.join(resolveCanonDir(series_id), "episodes.json");
+      const episodes = fs.existsSync(episodesPath) ? JSON.parse(fs.readFileSync(episodesPath, "utf-8")) : [];
+      const dataDir = resolveCanonDir(series_id);
+      const pagesPath = path.join(dataDir, "pages");
+      const pageCount = fs.existsSync(pagesPath) ? fs.readdirSync(pagesPath).length : 0;
+
+      const alertsPath = path.join(__dirname, "..", "data", "alerts", `${series_id}.json`);
+      let alertCount = 0;
+      let flagsTotal = 0;
+      if (fs.existsSync(alertsPath)) {
+        const log = JSON.parse(fs.readFileSync(alertsPath, "utf-8"));
+        alertCount = log.stats?.pages_checked ?? 0;
+        flagsTotal = log.total_flags ?? 0;
+      }
+
+      return {
+        content: [{
+          type: "text" as const,
+          text: JSON.stringify({
+            series: canon.series,
+            episodes_available: episodes.length,
+            canon_upto_episode: canon.last_updated_episode,
+            pages_downloaded: pageCount,
+            characters_in_canon: canon.characters.length,
+            alerts: alertCount,
+            flags_found: flagsTotal,
+            status: "watching",
+          }, null, 2),
+        }],
+      };
+    }
+  );
+
+  mcpServer.tool(
+    "get-alerts",
+    "Retrieve continuity alerts for a watched series. " +
+      "Returns per-page flags and canon_additions detected by the watcher.",
+    {
+      series_id: z.string().describe("Series identifier (e.g. 'lore-olympus')"),
+      since_episode: z.number().int().optional().describe("Filter alerts from this episode onward"),
+      limit: z.number().int().optional().describe("Maximum number of alert entries to return (default 20)"),
+    },
+    async ({ series_id, since_episode, limit = 20 }) => {
+      const alertsPath = path.join(__dirname, "..", "data", "alerts", `${series_id}.json`);
+      if (!fs.existsSync(alertsPath)) {
+        return { content: [{ type: "text" as const, text: JSON.stringify({ error: `No alerts found for series "${series_id}". Register it first.` }) }] };
+      }
+      const log = JSON.parse(fs.readFileSync(alertsPath, "utf-8"));
+      let entries = log.alerts ?? [];
+      if (since_episode) entries = entries.filter((a: any) => a.episode >= since_episode!);
+      entries = entries.slice(-limit);
+
+      return {
+        content: [{
+          type: "text" as const,
+          text: JSON.stringify({
+            series_id,
+            total_alerts: log.alerts?.length ?? 0,
+            total_flags: log.total_flags ?? 0,
+            total_additions: log.total_additions ?? 0,
+            pages_flagged: log.stats?.pages_with_flags ?? 0,
+            entries,
+          }, null, 2),
+        }],
+      };
+    }
+  );
+
   return mcpServer;
 }
 
@@ -255,6 +334,17 @@ app.get("/health", (_req: Request, res: Response) => {
     model: "gemini-2.5-flash",
     series: listSeries(),
   });
+});
+
+// ─── GET /demo/alert-log  (ungated, for demo website) ───────────────────────
+app.get("/demo/alert-log", (req: Request, res: Response) => {
+  const seriesId = (req.query.series_id as string) || "lore-olympus";
+  const alertsPath = path.join(__dirname, "..", "data", "alerts", `${seriesId}.json`);
+  if (!fs.existsSync(alertsPath)) {
+    res.status(404).json({ error: `No alerts for series "${seriesId}"` });
+    return;
+  }
+  res.json(JSON.parse(fs.readFileSync(alertsPath, "utf-8")));
 });
 
 // ─── POST /check  (ungated, local dev convenience) ────────────────────────────
