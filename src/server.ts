@@ -179,26 +179,52 @@ function createMcpServer(): McpServer {
         .describe("Optional panel number of this page (used in canon_additions)"),
     },
     async ({ page_image_base64, mime_type, canon, series_id, dialogue, ep_number, panel_number }) => {
-      let canonOverride: CanonDoc | undefined;
-      if (canon) {
-        canonOverride = JSON.parse(canon) as CanonDoc;
+      try {
+        let canonOverride: CanonDoc | undefined;
+        if (canon) {
+          try {
+            canonOverride = JSON.parse(canon) as CanonDoc;
+          } catch (parseErr) {
+            return {
+              isError: true,
+              content: [{ type: "text" as const, text: JSON.stringify({
+                error: "Invalid canon JSON",
+                detail: parseErr instanceof Error ? parseErr.message : String(parseErr),
+              }) }],
+            };
+          }
+        }
+
+        const result = await runCheck(
+          page_image_base64,
+          mime_type,
+          canonOverride,
+          dialogue,
+          series_id,
+          ep_number,
+          panel_number
+        );
+
+        return {
+          content: [
+            { type: "text" as const, text: JSON.stringify(result, null, 2) },
+          ],
+        };
+      } catch (err: unknown) {
+        // Never let a tool error crash the MCP transport — return a proper
+        // JSON-RPC error result so the buyer gets an actionable response
+        // instead of an HTML 500 page.
+        const message = err instanceof Error ? err.message : String(err);
+        const isQuota = /quota|429|too many requests|rate limit/i.test(message);
+        console.error(`[check-continuity error${isQuota ? " (quota)" : ""}]`, message);
+        return {
+          isError: true,
+          content: [{ type: "text" as const, text: JSON.stringify({
+            error: isQuota ? "quota_exceeded" : "continuity_check_failed",
+            detail: message,
+          }) }],
+        };
       }
-
-      const result = await runCheck(
-        page_image_base64,
-        mime_type,
-        canonOverride,
-        dialogue,
-        series_id,
-        ep_number,
-        panel_number
-      );
-
-      return {
-        content: [
-          { type: "text" as const, text: JSON.stringify(result, null, 2) },
-        ],
-      };
     }
   );
 
@@ -573,7 +599,19 @@ async function startServer(): Promise<void> {
     async (req: Request, res: Response) => {
 
     try {
-      await handleMcpHttp(req, res, req.body);
+      // Guard against empty / non-JSON-RPC bodies — return a proper
+      // JSON-RPC parse error instead of letting the MCP transport crash.
+      const body = req.body;
+      if (!body || typeof body !== "object" || !("jsonrpc" in body)) {
+        console.error(`[/mcp POST] invalid/empty body: ${JSON.stringify(body).slice(0, 100)}`);
+        res.status(400).json({
+          jsonrpc: "2.0",
+          error: { code: -32700, message: "Parse error", data: "Request body must be a JSON-RPC 2.0 message" },
+          id: null,
+        });
+        return;
+      }
+      await handleMcpHttp(req, res, body);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       const stack = err instanceof Error ? err.stack : undefined;
@@ -653,6 +691,37 @@ async function startServer(): Promise<void> {
       if (stack) console.error(stack);
       if (!res.headersSent) res.status(status).json({ error: message, kind: isQuota ? "quota_exceeded" : "server_error" });
     }
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Global JSON error handler for /mcp — never return HTML 500 pages.
+  //
+  // OKX.AI's x402 validator pays $0.10 USDT per call, then expects a
+  // JSON-RPC response. If anything in the MCP tool chain throws AFTER
+  // the route handler's try/catch sees `headersSent`, Express's default
+  // error handler returns an HTML 500 page (148 bytes) — the buyer paid
+  // and got nothing. This handler catches anything that falls through
+  // and returns a proper JSON-RPC error instead.
+  // ─────────────────────────────────────────────────────────────────────────────
+  app.use((err: Error, req: Request, res: Response, _next: express.NextFunction) => {
+    if (res.headersSent) {
+      console.error(`[/mcp error AFTER headers sent] ${req.method} ${req.path}:`, err.message);
+      return;
+    }
+    const message = err instanceof Error ? err.message : String(err);
+    const isQuota = /quota|429|too many requests|rate limit/i.test(message);
+    const status = isQuota ? 429 : 500;
+    console.error(`[/mcp global error ${status}] ${req.method} ${req.path}:`, message);
+    if (err instanceof Error && err.stack) console.error(err.stack);
+    res.status(status).json({
+      jsonrpc: "2.0",
+      error: {
+        code: isQuota ? -32029 : -32603,
+        message: isQuota ? "quota_exceeded" : "internal_error",
+        data: message,
+      },
+      id: null,
+    });
   });
 
   // Start listening (skipped when imported by test-server.ts, which calls listen itself).
