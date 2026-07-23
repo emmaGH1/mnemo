@@ -294,8 +294,54 @@ async function handleMcpHttp(
 // lazily so the async facilitator resolution completes before first request.
 // ─────────────────────────────────────────────────────────────────────────────
 const app = express();
+// Railway / most reverse proxies terminate TLS in front of the app, so
+// `req.protocol` defaults to "http" unless we trust the proxy's
+// X-Forwarded-Proto. Without this, the PaymentRequired.resource.url
+// embedded in the 402 challenge advertises "http://" instead of
+// "https://" — OKX.AI's x402 validator rejects mismatched schemes.
+app.set("trust proxy", true);
 // Continuity checks send base64 page images — default 100kb is too small.
 app.use(express.json({ limit: "15mb" }));
+
+// ─────────────────────────────────────────────────────────────────────────────
+// x402 402-body interceptor
+//
+// The OKX SDK's paymentMiddleware writes the PaymentRequired challenge into
+// the `payment-required` header (base64 JSON) and sends an EMPTY JSON body
+// `{}`. The x402 v2 spec says the body MAY also carry the PaymentRequired,
+// and OKX.AI's marketplace validator requires it. We wrap res.json to
+// detect a 402 with the header and an empty body, then decode the header
+// and re-emit the PaymentRequired JSON as the body. The header is kept
+// intact so standard x402 clients still work.
+// ─────────────────────────────────────────────────────────────────────────────
+function with402Body(mw: express.RequestHandler): express.RequestHandler {
+  return (req, res, next) => {
+    const origJson = res.json.bind(res);
+    res.json = ((body: unknown) => {
+      if (
+        res.statusCode === 402 &&
+        res.getHeader("payment-required") &&
+        (body === undefined || body === null ||
+          (typeof body === "object" && body !== null && Object.keys(body).length === 0))
+      ) {
+        const prHeader = res.getHeader("payment-required");
+        if (typeof prHeader === "string") {
+          try {
+            const decoded = JSON.parse(
+              Buffer.from(prHeader, "base64").toString("utf-8")
+            ) as Record<string, unknown>;
+            res.setHeader("content-type", "application/json; charset=utf-8");
+            return origJson(decoded);
+          } catch {
+            // fall through to original body
+          }
+        }
+      }
+      return origJson(body);
+    }) as typeof res.json;
+    return mw(req, res, next);
+  };
+}
 
 
 const upload = multer({ storage: multer.memoryStorage() });
@@ -314,6 +360,7 @@ const x402Routes = {
       tokenAddress: USDT_X_LAYER,
     },
     description: "Webtoon continuity check — $0.10 USDT per call (X Layer)",
+    mimeType: "application/json",
   },
   "GET /mcp": {
     accepts: {
@@ -324,6 +371,7 @@ const x402Routes = {
       tokenAddress: USDT_X_LAYER,
     },
     description: "MCP discovery / SSE endpoint — $0.10 USDT per call (X Layer)",
+    mimeType: "application/json",
   },
 };
 
@@ -468,7 +516,7 @@ async function startServer(): Promise<void> {
       req.rawHeaders.push("accept", "application/json, text/event-stream");
       next();
     },
-    x402Mw,
+    with402Body(x402Mw),
     async (req: Request, res: Response) => {
 
     try {
@@ -504,7 +552,7 @@ async function startServer(): Promise<void> {
       req.rawHeaders.push("accept", "application/json, text/event-stream");
       next();
     },
-    x402Mw,
+    with402Body(x402Mw),
     async (req: Request, res: Response) => {
     try {
       await handleMcpHttp(req, res);
