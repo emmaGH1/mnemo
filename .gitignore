@@ -14,6 +14,11 @@ out
 dist
 build
 
+# Runtime artifacts (cached x402 challenges, server logs)
+express-log.txt
+.tmp-payment-required.b64
+*.b64
+
 # Environment Variables
 .env
 .env.local

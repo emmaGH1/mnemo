@@ -1,30 +1,194 @@
-# Mnemo — Webtoon Continuity Checker
+# Mnemo
 
-> **OKX.AI Hackathon ASP** — Core continuity detection proof-of-concept
+> **Continuity, kept.** The memory layer for serialized webtoon and comic art.
 
-Mnemo receives a **canon document** (accumulated series memory) and a **new page image**, then uses Gemini 2.5 Flash to detect continuity contradictions and propose canon additions — all as structured JSON.
+[![OKX.AI Agent 6211](https://img.shields.io/badge/OKX.AI-Agent_6211-000?style=flat-square&logo=okx&logoColor=white)](https://www.okx.ai/agents/6211)
+[![x402 $0.10/check](https://img.shields.io/badge/x402-0.1_USDT_per_check-000?style=flat-square)](https://github.com/emma0x/mnemo#api)
+[![MCP Live](https://img.shields.io/badge/MCP-mnemo--production--c4f1.up.railway.app-000?style=flat-square)](https://mnemo-production-c4f1.up.railway.app/mcp)
+[![License ISC](https://img.shields.io/badge/license-ISC-000?style=flat-square)](LICENSE)
+
+Mnemo is a paid MCP agent that checks webtoon / comic pages for character
+continuity drift. Send a page image; get back a JSON of every flag (severity,
+field, episode + panel refs, explanation) plus proposed canon additions.
+
+- **One paid MCP tool**: `check-continuity` at **$0.10 USDT per call** via
+  [x402](https://www.x402.org/) on X Layer (eip155:196)
+- **No account, no API key** — just a signed EIP-3009 payment
+- **Listed on the OKX.AI Agent Service Platform** as Agent 6211
+- **Endpoint**: `https://mnemo-production-c4f1.up.railway.app/mcp`
+- **Built for**: webtoon artists, studios, and the AI agents that work for them
 
 ---
 
-## Quick start
+## For AI agents
+
+Paste this into Claude Code, Codex, Hermes, OpenClaw, or any x402-capable
+agent — it's what the demo site's "How to use" section copies to the
+clipboard:
+
+```
+I'd like to use the service provided by Agent 6211:
+
+Service title: Continuity Check
+Service type: A2MCP
+Endpoint: https://mnemo-production-c4f1.up.railway.app/mcp
+
+Please use OKX Agent Payments Protocol to send a request to this endpoint.
+```
+
+Attach a page image. The agent will sign a $0.10 USDT payment, call
+`tools/call` with `name: "check-continuity"`, and return the continuity report.
+
+---
+
+## Quick start (humans)
 
 ```bash
-# 1. Clone / open
+git clone https://github.com/emma0x/mnemo.git
 cd mnemo
-
-# 2. Install
 npm install
-
-# 3. Set your API key (get it free at https://aistudio.google.com/apikey)
 cp .env.example .env
-# → edit .env and paste your GEMINI_API_KEY
-
-# 4. Run the proof-of-concept tests
-npm run test:continuity
-
-# 5. (Optional) Start the Express API server
-npm run dev
+# edit .env — set GEMINI_API_KEY (free at https://aistudio.google.com/apikey)
+npm run dev                          # Express on http://localhost:3000
 ```
+
+In another terminal — the demo site:
+
+```bash
+cd frontend
+npm install
+npm run dev                          # Next.js on http://localhost:3001
+```
+
+Open `http://localhost:3001` for the marketing site, or
+`curl http://localhost:3000/health` to confirm the API is up.
+
+---
+
+## API
+
+All routes respond JSON. The paid entry point is `POST /mcp`.
+
+### `POST /mcp` — x402-gated, $0.10 USDT per call
+
+The only public paid endpoint. Sends a JSON-RPC 2.0 message.
+
+**Unpaid → HTTP 402** (challenge):
+
+```bash
+curl -X POST https://mnemo-production-c4f1.up.railway.app/mcp \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+```
+
+```json
+{
+  "x402Version": 2,
+  "error": "Payment required",
+  "resource": {
+    "url": "https://mnemo-production-c4f1.up.railway.app/mcp",
+    "description": "Webtoon continuity check — $0.10 USDT per call (X Layer)",
+    "mimeType": "application/json"
+  },
+  "accepts": [{
+    "scheme": "exact",
+    "network": "eip155:196",
+    "amount": "100000",
+    "asset": "0x779ded0c9e1022225f8e0630b35a9b54be713736",
+    "payTo": "0x4dbfa1e240f921a72a4b47fa534269ce20a47c99",
+    "maxTimeoutSeconds": 300,
+    "extra": { "name": "USDT", "version": "1" }
+  }]
+}
+```
+
+**Paid → HTTP 200** (signed EIP-3009 retry):
+
+```bash
+# 1. decode the 402 challenge
+# 2. sign an EIP-3009 transferWithAuthorization
+# 3. retry with the signed payment in PAYMENT-SIGNATURE
+curl -X POST https://mnemo-production-c4f1.up.railway.app/mcp \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -H "PAYMENT-SIGNATURE: <signed-payment-base64>" \
+  -d '{
+    "jsonrpc":"2.0","id":1,"method":"tools/call",
+    "params":{
+      "name":"check-continuity",
+      "arguments":{
+        "page_image_base64":"<base64 PNG/JPEG/WebP>",
+        "mime_type":"image/png"
+      }
+    }
+  }'
+```
+
+### `POST /check` — ungated local dev
+
+Same tool, no payment. Multipart form:
+
+| Field        | Type | Required | Description                                                |
+|--------------|------|----------|------------------------------------------------------------|
+| `page_image` | file | yes      | PNG / JPEG / WebP page image                               |
+| `series_id`  | text | no       | Load canon from `data/series/<id>/canon.json`              |
+| `canon`      | text | no       | JSON string of the canon doc (overrides `series_id`)       |
+| `dialogue`   | text | no       | Raw script / dialogue text for dialogue-level checks       |
+
+### `GET /health`
+
+Liveness probe. Returns `{ status, model, series[] }`.
+
+### `GET /demo/alert-log?series_id=<id>`
+
+Returns the watch-mode alert log for a series (consumed by the demo site).
+`series_id` must match `[a-z0-9_-]+`; any other value returns `400`.
+
+---
+
+## The `check-continuity` tool
+
+**Input arguments:**
+
+| Field               | Type      | Required | Description                                                              |
+|---------------------|-----------|----------|--------------------------------------------------------------------------|
+| `page_image_base64` | string    | yes      | Base64-encoded page image                                                |
+| `mime_type`         | string    | yes      | `image/png` \| `image/jpeg` \| `image/webp`                              |
+| `canon`             | CanonDoc  | no       | Inline canon — otherwise loaded from `data/series/<series_id>/canon.json` |
+| `series_id`         | string    | no       | Series to load canon for (defaults to the Aria fixture)                  |
+| `dialogue`          | string    | no       | Page script / dialogue for dialogue-level checks                         |
+
+**Output (`ContinuityCheckResult`):**
+
+```json
+{
+  "flags": [
+    {
+      "severity": "high",
+      "character": "Persephone",
+      "field": "eye_color",
+      "canon_value": "green",
+      "new_value": "blue",
+      "ep_ref": 1,
+      "panel_ref": 8,
+      "explanation": "Persephone's eyes appear blue on this page but were established as vivid green in Episode 1, Panel 8."
+    }
+  ],
+  "canon_additions": [
+    { "kind": "character_fact", "character": "Persephone", "field": "freckles",
+      "value": "across nose bridge", "ep_ref": 3, "panel_ref": 1 }
+  ]
+}
+```
+
+Flag severities: `low | medium | high | critical`. Flag fields: `hair`,
+`eye_color`, `outfit`, `scar`, `prop`, `mark`, `body`, `age`, `location`,
+`relationship`, `status`.
+
+The full CanonDoc schema (characters, events, locations) is in
+[`data/canon.json`](data/canon.json) — a worked example with two characters,
+four events, and three locations.
 
 ---
 
@@ -33,118 +197,141 @@ npm run dev
 ```
 mnemo/
 ├── src/
-│   ├── checker.ts         # Core checkContinuity() function (Gemini 2.5 Flash)
-│   ├── check-handler.ts   # runCheck() — loads canon, calls checker
-│   ├── resolve-canon.ts   # File-per-series canon storage
-│   ├── server.ts          # Express API — POST /check, POST /mcp (x402-gated)
-│   ├── test.ts            # Proof-of-concept test runner
-│   ├── test-server.ts     # Payment gate integration tests
-│   └── types.ts           # Shared TypeScript types
+│   ├── server.ts            # Express + x402 middleware + MCP transport
+│   ├── checker.ts           # checkContinuity() — Gemini call + 100-line prompt
+│   ├── check-handler.ts     # runCheck() — bridges canon resolution + checker
+│   ├── resolve-canon.ts     # loadCanon / listSeries / seriesDir
+│   ├── types.ts             # Shared TypeScript types
+│   ├── test.ts              # Continuity PoC test (Aria fixture)
+│   └── test-server.ts       # x402 gate tests (A: unpaid, B: direct, C: paid)
 ├── scripts/
-│   ├── scrape-webtoon.ts  # Scrape Webtoon series metadata + page images
-│   └── build-canon.ts     # Generate canon.json from scraped data via Gemini
+│   ├── scrape-webtoon.ts    # Webtoon EN scraper
+│   ├── scrape-webtoon-id.ts # Webtoon ID scraper (geo-block workaround)
+│   ├── build-canon.ts       # Generate canon.json from scraped data
+│   ├── mnemo.ts             # Watch-mode CLI (`npm run mnemo`)
+│   ├── listing-assets.js    # Regenerate the OKX square avatar
+│   ├── probe-tools-call.ts  # End-to-end paid-path smoke test (the canary)
+│   ├── probe-paid-replay.ts # 402 → sign → 200 replay test
+│   ├── e2e-test.ts          # Production smoke test
+│   └── record-loops.md      # Script for the 3 demo video segments
 ├── data/
-│   ├── canon.json          # Legacy test series canon doc ("Echoes of Aria")
-│   └── series/             # File-per-series storage (one folder per series)
-├── test-images/
-│   ├── page_clean.png
-│   └── page_contradiction.png
-├── .env.example
+│   ├── canon.json           # Legacy Aria fixture (used when no series_id)
+│   ├── alerts/<id>.json     # Watch-mode results
+│   └── series/<id>/         # Per-series canon, episodes, scraped pages
+├── frontend/                # Next.js 15 marketing / demo site (port 3001)
+├── docs/okx-listing.md      # Live OKX.AI listing state + re-push commands
+├── .env.example             # Required env vars
+├── .progress/checkpoint.json  # Session resume anchor
 └── tsconfig.json
 ```
 
 ---
 
-## API
+## Frontend
 
-### `POST /check`
+A separate Next.js 15 app at [`frontend/`](frontend/), runs on port 3001, and
+rewrites `/api/*` to the Express server on `:3000`.
 
-Multipart form data:
+Sections: **Nav** · **Hero** · **Showcase** (Lore Olympus annotated page) ·
+**VideoCards** (3 demo loops) · **HowToUse** (prompt template with Copy
+button + price callout) · **Footer**.
 
-| Field        | Type   | Required | Description                                        |
-|--------------|--------|----------|----------------------------------------------------|
-| `page_image` | file   | ✅       | PNG/JPEG of the new webtoon page                   |
-| `canon`      | text   | ❌       | JSON string of the canon doc (uses default if omitted) |
-| `series_id`  | text   | ❌       | Load canon from `data/series/<id>/canon.json`      |
-| `dialogue`   | text   | ❌       | Raw script/dialogue text for this page             |
-
-**Response** (`application/json`):
-```json
-{
-  "flags": [
-    {
-      "severity": "high",
-      "character": "Aria Voss",
-      "field": "eye_color",
-      "canon_value": "blue",
-      "new_value": "green",
-      "ep_ref": 1,
-      "panel_ref": 2,
-      "explanation": "Aria's eyes appear green on this page but were established as ice-blue in Episode 1, Panel 2."
-    }
-  ],
-  "canon_additions": []
-}
-```
-
-### `GET /health`
-Returns `{ "status": "ok", "model": "gemini-2.5-flash", "series": [...] }`.
-
----
-
-## Canon document schema
-
-See [`data/canon.json`](data/canon.json) for the full example. Key sections:
-
-- **`characters[]`** — physical attributes (eye color, hair, scars…) with establishing episode/panel
-- **`events[]`** — named story events and participants
-- **`locations[]`** — named locations and their current status
-
----
-
-## Scraping a real Webtoon
+x.ai-inspired: AMOLED black + white only, Inter + Bricolage Grotesque + Rubik
+Mono + Oi fonts, mobile-responsive, `prefers-reduced-motion` respected.
 
 ```bash
-# 1. Scrape series metadata + page images
-npx tsx scripts/scrape-webtoon.ts "https://www.webtoons.com/en/fantasy/tower-of-god/list?title_no=95"
-
-# 2. Generate canon.json from scraped data (uses Gemini)
-npx tsx scripts/build-canon.ts tower-of-god
-
-# 3. Review & edit the canon (fill any gaps Gemini missed)
-#    → edit data/series/tower-of-god/canon.json
-
-# 4. Test continuity with a new page
-npx tsx src/test.ts tower-of-god
-
-# 5. Run the API against this series
-npm run dev
-# → POST /check with series_id=tower-of-god
+cd frontend
+npm install
+npm run dev          # http://localhost:3001
 ```
-
-**Scraper options:**
-```
---episodes 1-5    Only scrape specific episodes
---no-images       Skip image download (metadata only)
---out <id>        Custom series_id (default: auto-generated from title)
-```
-
-## File-per-series storage
-
-```
-data/series/<series_id>/
-├── series.json      # Series metadata (title, author, genre, summary)
-├── episodes.json     # Episode list with titles and dates
-├── scraped.json      # Per-episode image URLs extracted during scraping
-├── pages/            # Downloaded page images (ep001_p01.jpg, ...)
-└── canon.json        # Generated canon document (the AI memory)
-```
-
-The API loads canon from `data/series/<series_id>/canon.json` when you pass `series_id`.
-The legacy `data/canon.json` still works as the default when no `series_id` is provided.
 
 ---
 
-## Model choice
+## Testing
 
-`gemini-2.5-flash` — best balance of vision capability, reasoning, and cost-efficiency at the free tier (upgraded from the `gemini-2.0-flash` template). Gemini 2.0 Flash was deprecated June 2026.
+```bash
+npm run test:continuity                                    # Aria fixture — checker logic
+npm run test:payment                                       # x402 gate: A, B, C
+npx tsx scripts/probe-tools-call.ts                        # Full paid path on Railway
+npx tsx scripts/probe-paid-replay.ts                       # 402 → sign → 200 replay
+npx tsx scripts/e2e-test.ts                                # Production smoke
+```
+
+`probe-tools-call.ts` is the canary — run it before any resubmit. It sends a
+real `tools/call` with a real test image and asserts the full
+`unpaid → 402 → sign → 200 with JSON-RPC result` path.
+
+---
+
+## OKX.AI listing (Agent 6211)
+
+Mnemo is listed on the OKX.AI Agent Service Platform.
+
+| Field             | Value                                                                       |
+|-------------------|-----------------------------------------------------------------------------|
+| Listing page      | https://www.okx.ai/agents/6211                                              |
+| Service id        | `34794`                                                                     |
+| Service type      | A2MCP                                                                        |
+| Fee               | `0.1` USDT per call                                                          |
+| Endpoint          | https://mnemo-production-c4f1.up.railway.app/mcp                            |
+| Profile picture   | `frontend/public/listing-avatar.jpg` (1408×1408, full logo, black bg)       |
+
+Live state, re-push commands, and the canonical copy live in
+[`docs/okx-listing.md`](docs/okx-listing.md).
+
+### Re-pushing the listing
+
+If you change the avatar, copy, or endpoint, push again via the `onchainos`
+CLI:
+
+```bash
+# 1. Upload a new avatar
+onchainos agent upload --file frontend/public/listing-avatar.jpg
+
+# 2. Update the agent identity
+onchainos agent update --agent-id 6211 \
+  --name "Mnemo" \
+  --description "Continuity, kept. The memory layer for serialized webtoon and comic art." \
+  --picture "<cdn-url-from-step-1>"
+
+# 3. Update the service
+onchainos agent update --agent-id 6211 --service '[{
+  "operation": "update",
+  "id": "34794",
+  "serviceName": "Continuity Check",
+  "serviceDescription": "Drop a page image; get a JSON of every continuity flag vs your series canon. Per-character inconsistencies (severity, field, episode + panel refs, explanation) plus proposed canon additions. Inputs: page image (base64), MIME type, optional canon JSON, optional dialogue. 0.1 USDT per check via x402.",
+  "serviceType": "A2MCP",
+  "fee": "0.1",
+  "endpoint": "https://mnemo-production-c4f1.up.railway.app/mcp"
+}]'
+```
+
+> **Gotchas (learned the hard way):**
+> - **PowerShell mangles JSON** in `--service` on Windows. Spawn `onchainos.exe`
+>   from Node so the JSON survives intact.
+> - **`serviceDescription` is hard-capped at 500 chars** by the OKX API.
+> - **`operation: "delete"` still requires all the other service fields.**
+> - **Any update re-triggers the listing QA review** (status flips to "Listing
+>   under review" for ~24h).
+
+---
+
+## Tech stack
+
+**Backend** — Express 5, MCP SDK 1.29, `@okxweb3/x402-express` 0.1.1,
+`@google/generative-ai` 0.24, viem 2.55, zod 4, multer 2, TypeScript 7.
+
+**Frontend** — Next.js 15, React 19, Tailwind v4, framer-motion 12, TypeScript
+5.8.
+
+**AI** — Gemini 2.5 Flash (with a fallback list). Chosen for vision quality
++ cost on the free tier; upgraded from the deprecated Gemini 2.0 Flash.
+
+**Blockchain** — X Layer (eip155:196), USDT contract
+`0x779d…3736`, EIP-3009 `transferWithAuthorization`.
+
+---
+
+## License
+
+ISC.

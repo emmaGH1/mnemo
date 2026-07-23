@@ -140,7 +140,7 @@ npm run mnemo -- watch --series lore-olympus --pages p01,p05,p08,p12 --delay 400
 
 ## Segment 03 — "Tell your agent" (agent + payment loop)
 
-**Target:** 20s loop. The user pasting the "Tell your agent" prompt into an AI agent, and the agent paying + calling Agent 6211's `check_continuity` tool to flag a page.
+**Target:** 20s loop. The user pasting the "Tell your agent" prompt into an AI agent, and the agent paying + calling Agent 6211's `check-continuity` tool to flag a page.
 
 **Why this segment:** the demo site (`frontend/`) already has a "How to use" section with the exact prompt + a Copy button. This loop is that section in motion — it shows the product as an OKX.AI ASP, not just a CLI.
 

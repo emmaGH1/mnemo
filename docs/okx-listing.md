@@ -85,7 +85,7 @@ For the demo site's "How to use" section and other marketing, use:
 >
 > Mnemo fixes that. It holds a structured canon of your series — every named character's establishing attributes, every plot-locked event, every canonical location — and checks each new page against it before you publish.
 >
-> Built on OKX.AI's Agentic Service Protocol, it exposes a single paid MCP tool (`check_continuity`) and a couple of free register/lookup tools. Any agent that supports x402 — Claude Code, Hermes, OpenClaw, your own runtime — can pay 0.1 USDT per check and get a structured continuity report back.
+> Built on OKX.AI's Agentic Service Protocol, it exposes a single paid MCP tool (`check-continuity`) and a couple of free register/lookup tools. Any agent that supports x402 — Claude Code, Hermes, OpenClaw, your own runtime — can pay 0.1 USDT per check and get a structured continuity report back.
 >
 > **Mnemo remembers so you can create.**
 

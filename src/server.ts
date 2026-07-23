@@ -466,6 +466,12 @@ app.get("/health", (_req: Request, res: Response) => {
 // ─── GET /demo/alert-log  (ungated, for demo website) ───────────────────────
 app.get("/demo/alert-log", (req: Request, res: Response) => {
   const seriesId = (req.query.series_id as string) || "lore-olympus";
+  // ponytail: whitelist series_id — query param goes into path.join; reject anything
+  // that isn't [a-z0-9_-] so `?series_id=../.env` can't escape data/alerts/.
+  if (!/^[a-z0-9_-]+$/.test(seriesId)) {
+    res.status(400).json({ error: "invalid series_id" });
+    return;
+  }
   const alertsPath = path.join(__dirname, "..", "data", "alerts", `${seriesId}.json`);
   if (!fs.existsSync(alertsPath)) {
     res.status(404).json({ error: `No alerts for series "${seriesId}"` });
