@@ -10,7 +10,6 @@ import { OKX_AGENT_URL } from "@/config";
 const links = [
   { label: "How to use", href: "#use" },
   { label: "In action", href: "#watch" },
-  { label: "Docs", href: "#api" },
 ];
 
 export default function Nav() {
@@ -19,17 +18,17 @@ export default function Nav() {
   return (
     <>
       <header className="sticky top-0 z-40 w-full border-b border-white/8 bg-black/70 backdrop-blur-md">
-        <nav className="mx-auto flex h-16 max-w-[1280px] items-center justify-between px-6">
+        <nav className="mx-auto flex h-20 max-w-[1280px] items-center justify-between px-8">
           <Link href="/" aria-label="Mnemo home" className="flex items-center">
-            <Logo size={20} withWordmark />
+            <Logo size={28} withWordmark />
           </Link>
 
-          <div className="hidden items-center gap-8 md:flex">
+          <div className="hidden items-center gap-10 md:flex">
             {links.map((l) => (
               <Link
                 key={l.label}
                 href={l.href}
-                className="text-[15px] font-medium text-white/70 transition-colors hover:text-white"
+                className="text-[17px] font-medium text-white/70 transition-colors hover:text-white"
               >
                 {l.label}
               </Link>
@@ -37,7 +36,7 @@ export default function Nav() {
           </div>
 
           <div className="hidden items-center gap-3 md:flex">
-            <Pill href={OKX_AGENT_URL}>Use on OKX.AI ↗</Pill>
+            <Pill href={OKX_AGENT_URL}>Use on OKX.AI</Pill>
           </div>
 
           {/* hamburger — mobile only */}
@@ -47,14 +46,12 @@ export default function Nav() {
             className="relative flex h-10 w-10 items-center justify-center md:hidden"
           >
             <span
-              className={`absolute h-[1.5px] w-[18px] bg-white transition-all duration-300 ${
-                open ? "rotate-45" : "-translate-y-[3.5px]"
-              }`}
+              className={`absolute h-[1.5px] w-[18px] bg-white transition-all duration-300 ${open ? "rotate-45" : "-translate-y-[3.5px]"
+                }`}
             />
             <span
-              className={`absolute h-[1.5px] w-[18px] bg-white transition-all duration-300 ${
-                open ? "-rotate-45" : "translate-y-[3.5px]"
-              }`}
+              className={`absolute h-[1.5px] w-[18px] bg-white transition-all duration-300 ${open ? "-rotate-45" : "translate-y-[3.5px]"
+                }`}
             />
           </button>
         </nav>

@@ -5,6 +5,7 @@
   "main": "dist/server.js",
   "scripts": {
     "dev": "tsx src/server.ts",
+    "mnemo": "tsx scripts/mnemo.ts",
     "test:continuity": "tsx src/test.ts",
     "test:payment": "tsx src/test-server.ts",
     "build": "tsc",

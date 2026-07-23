@@ -5,7 +5,7 @@ type LogoProps = {
 };
 
 export default function Logo({
-  size = 20,
+  size = 28,
   withWordmark = false,
   className = "",
 }: LogoProps) {
@@ -30,7 +30,7 @@ export default function Logo({
         <path d="M20 47V77" stroke="white" strokeWidth="5" />
       </svg>
       {withWordmark && (
-        <span className="text-[18px] font-semibold leading-none tracking-tight text-white">
+        <span className="text-[22px] font-bold leading-none tracking-tight text-white">
           mnemo
         </span>
       )}

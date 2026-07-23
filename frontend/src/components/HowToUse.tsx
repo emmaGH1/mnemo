@@ -27,16 +27,16 @@ export default function HowToUse() {
   };
 
   return (
-    <section id="use" className="px-5 py-24 md:px-6 md:py-32">
+    <section id="use" className="scroll-mt-20 px-5 py-24 md:px-6 md:py-32">
       <Reveal className="mx-auto max-w-3xl">
         <div className="text-center">
-          <p className="text-xs uppercase tracking-wider text-white/50">
+          <p className="font-mono-statement text-[13px] uppercase tracking-wider text-white/50">
             How to use
           </p>
-          <h2 className="mt-4 text-4xl font-bold tracking-tight text-white md:text-6xl">
+          <h2 className="mt-4 font-display text-4xl font-extrabold tracking-tight text-white md:text-6xl">
             Tell your agent.
           </h2>
-          <p className="mx-auto mt-4 max-w-xl text-base text-white/55 md:text-lg">
+          <p className="mx-auto mt-5 max-w-xl text-lg leading-relaxed text-white/55 md:text-xl">
             Copy the prompt below. Paste it to Claude Code, Hermes, OpenClaw,
             or any agent that supports x402. The agent handles the rest.
           </p>
@@ -77,12 +77,12 @@ export default function HowToUse() {
           </button>
         </div>
 
-        {/* price */}
-        <div className="mt-16 text-center">
-          <p className="text-2xl font-semibold tabular-nums text-white md:text-3xl">
+        {/* price — the single Oi moment */}
+        <div id="pricing" className="mt-16 scroll-mt-24 text-center">
+          <p className="font-oi text-3xl text-white md:text-5xl">
             0.1 USDT per check
           </p>
-          <p className="mt-2 text-sm text-white/40">
+          <p className="mt-3 text-sm text-white/40 md:text-base">
             Paid automatically by the agent&rsquo;s wallet. No account, no API
             key, no sign-up.
           </p>
@@ -91,12 +91,6 @@ export default function HowToUse() {
         {/* route to OKX.AI */}
         <div className="mt-10 flex flex-col items-center gap-4">
           <Pill href={OKX_AGENT_URL}>Use on OKX.AI ↗</Pill>
-          <a
-            href="#api"
-            className="text-sm text-white/50 transition-colors duration-150 hover:text-white"
-          >
-            Or read the API reference →
-          </a>
         </div>
       </Reveal>
     </section>

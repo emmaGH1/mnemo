@@ -41,7 +41,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 
 // ── Local imports ──────────────────────────────────────────────────────────────
-import { checkContinuity } from "./checker.js";
+import { checkContinuity, getActiveModel } from "./checker.js";
 import { runCheck } from "./check-handler.js";
 import { loadCanon, listSeries, seriesDir as resolveCanonDir } from "./resolve-canon.js";
 import type { CanonDoc } from "./types.js";
@@ -331,7 +331,7 @@ const x402Routes = {
 app.get("/health", (_req: Request, res: Response) => {
   res.json({
     status: "ok",
-    model: "gemini-2.5-flash",
+    model: getActiveModel(),
     series: listSeries(),
   });
 });
@@ -377,8 +377,10 @@ app.post(
       res.json(result);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
-      console.error("[/check error]", message);
-      res.status(500).json({ error: message });
+      const isQuota = /quota|429|too many requests|rate limit/i.test(message);
+      const status = isQuota ? 429 : 500;
+      console.error(`[/check error ${status}]`, message);
+      res.status(status).json({ error: message, kind: isQuota ? "quota_exceeded" : "server_error" });
     }
   }
 );
@@ -400,22 +402,35 @@ async function startServer(): Promise<void> {
     );
   } else {
     const reachable = await canReachOKX();
-    if (reachable) {
-      console.log(
-        "[x402] OKX credentials present and web3.okx.com reachable — using real OKXFacilitatorClient."
-      );
-      facilitatorClient = new OKXFacilitatorClient({
-        apiKey: OKX_API_KEY,
-        secretKey: OKX_SECRET_KEY,
-        passphrase: OKX_PASSPHRASE,
-      });
-      isStubMode = false;
-    } else {
+    if (!reachable) {
       console.warn(
-        "⚠️  [x402] OKX credentials present but web3.okx.com unreachable (DNS failure).\n" +
+        "⚠️  [x402] OKX credentials present but web3.okx.com DNS lookup failed.\n" +
           "    Using stub facilitator — Tests A+B work; Test C must run on a machine\n" +
-          "    with OKX API access."
+          "with OKX API access."
       );
+    } else {
+      try {
+        const real = new OKXFacilitatorClient({
+          apiKey: OKX_API_KEY,
+          secretKey: OKX_SECRET_KEY,
+          passphrase: OKX_PASSPHRASE,
+        });
+        // ponytail: pre-flight getSupported so a network failure here flips to stub
+        // instead of crashing the whole server. Real client stays attached for later verify/settle.
+        await real.getSupported();
+        facilitatorClient = real;
+        isStubMode = false;
+        console.log(
+          "[x402] OKX credentials present and web3.okx.com reachable — using real OKXFacilitatorClient."
+        );
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        console.warn(
+          `⚠️  [x402] OKX credentials present but facilitator unreachable (${msg}).\n` +
+            "    Using stub facilitator — POST /mcp will return 402 for unpaid, but\n" +
+            "verify/settle require network access to web3.okx.com."
+        );
+      }
     }
   }
 
@@ -461,9 +476,11 @@ async function startServer(): Promise<void> {
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       const stack = err instanceof Error ? err.stack : undefined;
-      console.error("[/mcp POST error]", message);
+      const isQuota = /quota|429|too many requests|rate limit/i.test(message);
+      const status = isQuota ? 429 : 500;
+      console.error(`[/mcp POST error ${status}]`, message);
       if (stack) console.error(stack);
-      if (!res.headersSent) res.status(500).json({ error: message });
+      if (!res.headersSent) res.status(status).json({ error: message, kind: isQuota ? "quota_exceeded" : "server_error" });
     }
   });
 
@@ -494,9 +511,11 @@ async function startServer(): Promise<void> {
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       const stack = err instanceof Error ? err.stack : undefined;
-      console.error("[/mcp GET error]", message);
+      const isQuota = /quota|429|too many requests|rate limit/i.test(message);
+      const status = isQuota ? 429 : 500;
+      console.error(`[/mcp GET error ${status}]`, message);
       if (stack) console.error(stack);
-      if (!res.headersSent) res.status(500).json({ error: message });
+      if (!res.headersSent) res.status(status).json({ error: message, kind: isQuota ? "quota_exceeded" : "server_error" });
     }
   });
 
@@ -527,9 +546,11 @@ async function startServer(): Promise<void> {
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       const stack = err instanceof Error ? err.stack : undefined;
-      console.error("[/mcp DELETE error]", message);
+      const isQuota = /quota|429|too many requests|rate limit/i.test(message);
+      const status = isQuota ? 429 : 500;
+      console.error(`[/mcp DELETE error ${status}]`, message);
       if (stack) console.error(stack);
-      if (!res.headersSent) res.status(500).json({ error: message });
+      if (!res.headersSent) res.status(status).json({ error: message, kind: isQuota ? "quota_exceeded" : "server_error" });
     }
   });
 

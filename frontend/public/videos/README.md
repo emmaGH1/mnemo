@@ -7,10 +7,10 @@ section:
 | ------------------- | ------------- |
 | `watch.mp4`         | 01 / Watch    |
 | `check.mp4`         | 02 / Check    |
-| `remember.mp4`      | 03 / Remember |
+| `agent.mp4`         | 03 / Agent    |
 
 Optional posters: `watch-poster.jpg`, `check-poster.jpg`,
-`remember-poster.jpg`.
+`agent-poster.jpg`.
 
 After dropping a file in, set `ready: true` for that entry in the `videos`
 array in `src/components/VideoCards.tsx`. Play/pause on viewport visibility

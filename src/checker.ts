@@ -84,12 +84,27 @@ const responseSchema: any = {
 };
 
 // ---------------------------------------------------------------------------
-// Model setup — gemini-2.5-flash: best price/performance for vision tasks
+// Model setup — fallback list covers legacy + new-API-key model availability
 // ---------------------------------------------------------------------------
-function getModel(apiKey: string) {
+// ponytail: legacy keys get gemini-2.5-flash, new keys may get 404'd there
+// and silently fall through to lite/latest. First successful model is cached
+// so subsequent calls skip the retry loop. Order = preference, not required.
+const MODEL_FALLBACKS = [
+  "gemini-2.5-flash",
+  "gemini-2.5-flash-lite",
+  "gemini-flash-latest",
+] as const;
+
+let activeModel: string | null = null;
+
+export function getActiveModel(): string {
+  return activeModel ?? MODEL_FALLBACKS[0];
+}
+
+function getModel(apiKey: string, modelName: string) {
   const genAI = new GoogleGenerativeAI(apiKey);
   return genAI.getGenerativeModel({
-    model: "gemini-2.5-flash",
+    model: modelName,
     systemInstruction: SYSTEM_PROMPT,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     generationConfig: {
@@ -131,31 +146,50 @@ export async function checkContinuity(
     );
   }
 
-  const model = getModel(apiKey);
-
   const pageLocation =
     epNumber != null || panelNumber != null
       ? `\n\nThis page is episode ${epNumber ?? "?"}, panel ${panelNumber ?? "?"}. Use these numbers verbatim in any canon_additions ep/panel fields.`
       : "";
 
-  const result = await model.generateContent([
-    {
-      text: `Canon doc:\n${JSON.stringify(canonDoc, null, 2)}\n\nDialogue/script for this page:\n${dialogueText ?? "(none provided)"
-        }${pageLocation}`,
-    },
-    {
-      inlineData: {
-        mimeType,
-        data: pageImageBase64,
-      },
-    },
-  ]);
+  // If we've already discovered a working model this session, use it directly.
+  const candidates = activeModel ? [activeModel] : [...MODEL_FALLBACKS];
+  let lastErr: unknown = null;
+  for (const modelName of candidates) {
+    try {
+      const model = getModel(apiKey, modelName);
+      const result = await model.generateContent([
+        {
+          text: `Canon doc:\n${JSON.stringify(canonDoc, null, 2)}\n\nDialogue/script for this page:\n${dialogueText ?? "(none provided)"
+            }${pageLocation}`,
+        },
+        {
+          inlineData: {
+            mimeType,
+            data: pageImageBase64,
+          },
+        },
+      ]);
 
-  const raw = result.response.text();
-
-  try {
-    return JSON.parse(raw) as ContinuityCheckResult;
-  } catch {
-    throw new Error(`Gemini returned non-JSON response:\n${raw}`);
+      const raw = result.response.text();
+      activeModel = modelName;
+      try {
+        return JSON.parse(raw) as ContinuityCheckResult;
+      } catch {
+        throw new Error(`Gemini returned non-JSON response:\n${raw}`);
+      }
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (/404|not found|no longer available/i.test(msg)) {
+        lastErr = e;
+        continue;
+      }
+      throw e;
+    }
   }
+
+  throw new Error(
+    `No working Gemini model found. Tried: ${candidates.join(", ")}\nLast error: ${
+      lastErr instanceof Error ? lastErr.message : String(lastErr)
+    }`
+  );
 }

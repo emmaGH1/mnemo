@@ -3,7 +3,6 @@ import Hero from "@/components/Hero";
 import Showcase from "@/components/Showcase";
 import VideoCards from "@/components/VideoCards";
 import HowToUse from "@/components/HowToUse";
-import ApiSection from "@/components/ApiSection";
 import Footer from "@/components/Footer";
 
 export default function Home() {
@@ -15,7 +14,6 @@ export default function Home() {
         <Showcase />
         <VideoCards />
         <HowToUse />
-        <ApiSection />
       </main>
       <Footer />
     </>

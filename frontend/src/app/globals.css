@@ -2,6 +2,12 @@
 
 /* Mnemo — AMOLED black, white-only, faint engineering grid */
 
+@theme {
+  --font-display: var(--font-bricolage), "Inter", sans-serif;
+  --font-mono-statement: var(--font-rubik-mono), monospace;
+  --font-oi: var(--font-oi), sans-serif;
+}
+
 body {
   background-color: #000;
   color: #fff;
@@ -23,24 +29,72 @@ html {
   scroll-behavior: smooth;
 }
 
-/* Ken Burns — hero background still */
-@keyframes kenburns {
-  0%,
-  100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.08);
-  }
+/* Hero — CSS-only background layers (no image asset) */
+.hero-grid {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+  background-size: 64px 64px;
+  -webkit-mask-image: radial-gradient(
+    ellipse 75% 65% at 50% 45%,
+    black 20%,
+    transparent 78%
+  );
+  mask-image: radial-gradient(
+    ellipse 75% 65% at 50% 45%,
+    black 20%,
+    transparent 78%
+  );
 }
-.kenburns {
-  animation: kenburns 20s ease-in-out infinite;
+
+.hero-spotlight {
+  background: radial-gradient(
+    ellipse 50% 40% at 50% 42%,
+    rgba(255, 255, 255, 0.07),
+    transparent 70%
+  );
+}
+
+.hero-mesh {
+  background:
+    radial-gradient(
+      ellipse 40% 32% at 25% 28%,
+      rgba(255, 255, 255, 0.05),
+      transparent 70%
+    ),
+    radial-gradient(
+      ellipse 36% 30% at 75% 68%,
+      rgba(255, 255, 255, 0.04),
+      transparent 70%
+    );
+  animation: mesh-drift 26s ease-in-out infinite;
   will-change: transform;
 }
+
+@keyframes mesh-drift {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(3%, -2%) scale(1.08);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .kenburns {
+  .hero-mesh {
     animation: none;
   }
+}
+
+/* Custom cursor — hide the system cursor only when Cursor.tsx is active
+   (desktop, fine pointer, motion allowed) */
+.cursor-custom,
+.cursor-custom a,
+.cursor-custom button,
+.cursor-custom [role="button"],
+.cursor-custom [data-cursor] {
+  cursor: none;
 }
 
 ::selection {

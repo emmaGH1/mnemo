@@ -18,6 +18,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as dotenv from "dotenv";
+import { spawnSync } from "node:child_process";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { saveCanon } from "../src/resolve-canon.js";
 import type { CanonDoc } from "../src/types.js";
@@ -187,99 +188,128 @@ async function main(): Promise<void> {
     }
   }
 
-  // ── Call Gemini ──
-  console.log("⏳  Calling Gemini 2.5 Flash...\n");
+  // ── Call Gemini (with model fallback for legacy/new API-key compatibility) ──
+  console.log("⏳  Generating canon...\n");
 
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({
-    model: "gemini-2.5-flash",
-    systemInstruction: SYSTEM_PROMPT,
-    generationConfig: {
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: "object",
-        properties: {
-          series: { type: "string" },
-          version: { type: "integer" },
-          last_updated_episode: { type: "integer" },
-          characters: {
-            type: "array",
-            items: {
-              type: "object",
-              properties: {
-                id: { type: "string" },
-                name: { type: "string" },
-                status: { type: "string", enum: ["main", "supporting", "antagonist", "cameo"] },
-                physical: { type: "object" },
-                clothing_defaults: { type: "object" },
-                abilities: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      name: { type: "string" },
-                      description: { type: "string" },
-                      established_episode: { type: "integer" },
-                      established_panel: { type: "integer" },
-                    },
-                  },
-                },
-                relationships: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      with: { type: "string" },
-                      type: { type: "string" },
-                      established_episode: { type: "integer" },
-                      established_panel: { type: "integer" },
-                      notes: { type: "string" },
-                    },
+  // ponytail: same fallback list as checker.ts — legacy keys get 2.5-flash,
+  // new keys may 404 there and silently fall through to lite/latest.
+  const MODEL_FALLBACKS = [
+    "gemini-2.5-flash",
+    "gemini-2.5-flash-lite",
+    "gemini-flash-latest",
+  ];
+
+  const generationConfig = {
+    responseMimeType: "application/json",
+    responseSchema: {
+      type: "object",
+      properties: {
+        series: { type: "string" },
+        version: { type: "integer" },
+        last_updated_episode: { type: "integer" },
+        characters: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              id: { type: "string" },
+              name: { type: "string" },
+              status: { type: "string", enum: ["main", "supporting", "antagonist", "cameo"] },
+              physical: { type: "object" },
+              clothing_defaults: { type: "object" },
+              abilities: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    name: { type: "string" },
+                    description: { type: "string" },
+                    established_episode: { type: "integer" },
+                    established_panel: { type: "integer" },
                   },
                 },
               },
-            },
-          },
-          events: {
-            type: "array",
-            items: {
-              type: "object",
-              properties: {
-                id: { type: "string" },
-                title: { type: "string" },
-                episode: { type: "integer" },
-                panel_start: { type: "integer" },
-                summary: { type: "string" },
-                participants: { type: "array", items: { type: "string" } },
-                significance: {
-                  type: "string",
-                  enum: ["inciting_incident", "major", "minor", "character_intro"],
+              relationships: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    with: { type: "string" },
+                    type: { type: "string" },
+                    established_episode: { type: "integer" },
+                    established_panel: { type: "integer" },
+                    notes: { type: "string" },
+                  },
                 },
-              },
-            },
-          },
-          locations: {
-            type: "array",
-            items: {
-              type: "object",
-              properties: {
-                id: { type: "string" },
-                name: { type: "string" },
-                status: { type: "string", enum: ["standing", "destroyed", "unknown"] },
-                first_appearance_episode: { type: "integer" },
-                notes: { type: "string" },
               },
             },
           },
         },
-        required: ["series", "version", "last_updated_episode", "characters", "events", "locations"],
+        events: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              id: { type: "string" },
+              title: { type: "string" },
+              episode: { type: "integer" },
+              panel_start: { type: "integer" },
+              summary: { type: "string" },
+              participants: { type: "array", items: { type: "string" } },
+              significance: {
+                type: "string",
+                enum: ["inciting_incident", "major", "minor", "character_intro"],
+              },
+            },
+          },
+        },
+        locations: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              id: { type: "string" },
+              name: { type: "string" },
+              status: { type: "string", enum: ["standing", "destroyed", "unknown"] },
+              first_appearance_episode: { type: "integer" },
+              notes: { type: "string" },
+            },
+          },
+        },
       },
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } as any,
-  });
+      required: ["series", "version", "last_updated_episode", "characters", "events", "locations"],
+    },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } as any;
 
-  const result = await model.generateContent(imageParts);
-  const raw = result.response.text();
+  const genAI = new GoogleGenerativeAI(apiKey);
+  let raw: string | undefined;
+  let lastErr: unknown = null;
+  for (const modelName of MODEL_FALLBACKS) {
+    try {
+      const model = genAI.getGenerativeModel({
+        model: modelName,
+        systemInstruction: SYSTEM_PROMPT,
+        generationConfig,
+      });
+      const result = await model.generateContent(imageParts);
+      raw = result.response.text();
+      break;
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (/404|not found|no longer available/i.test(msg)) {
+        lastErr = e;
+        continue;
+      }
+      throw e;
+    }
+  }
+  if (raw == null) {
+    const finalMsg = lastErr instanceof Error ? lastErr.message : String(lastErr);
+    throw new Error(
+      `No working Gemini model found. Tried: ${MODEL_FALLBACKS.join(", ")}\nLast error: ${finalMsg}`
+    );
+  }
 
   let canonDoc: CanonDoc;
   try {
@@ -299,10 +329,29 @@ async function main(): Promise<void> {
   console.log(`   Events:     ${canonDoc.events.length}`);
   console.log(`   Locations:  ${canonDoc.locations.length}`);
   console.log(`\n   Saved: data/series/${seriesId}/canon.json`);
-  console.log(`\n   Review & fill gaps manually, then test:`);
-  console.log(`   npx tsx scripts/scrape-webtoon.ts <url> --episodes 2-2   (get more pages)`);
-  console.log(`   npx tsx scripts/build-canon.ts ${seriesId}               (rebuild after more pages)`);
-  console.log(`   npx tsx src/test.ts ${seriesId}                         (run continuity test)\n`);
+
+  // ── Optional: run the test harness (src/test.ts) against the just-saved canon ──
+  // ponytail: --test makes build-canon a single command for the recording:
+  // "build canon → run tests → see results" all in one terminal scroll.
+  if (process.argv.includes("--test")) {
+    console.log(`\n🧪  Running continuity tests...\n`);
+    // ponytail: --test runs against the Aria fixture in data/canon.json
+    // (not the just-built series) — the test images are of Aria, not of the
+    // scraped series. The series we built here is independent of the fixture.
+    const result = spawnSync("npx", ["tsx", "src/test.ts"], {
+      stdio: "inherit",
+      shell: true,
+    });
+    if (result.status !== 0) {
+      console.error(`\n   test harness exited with code ${result.status}`);
+    }
+  } else {
+    console.log(`\n   Review & fill gaps manually, then test:`);
+    console.log(`   npx tsx scripts/scrape-webtoon.ts <url> --episodes 2-2   (get more pages)`);
+    console.log(`   npx tsx scripts/build-canon.ts ${seriesId}               (rebuild after more pages)`);
+    console.log(`   npx tsx src/test.ts ${seriesId}                         (run continuity test)`);
+    console.log(`   npx tsx scripts/build-canon.ts ${seriesId} --test       (build + test in one go)\n`);
+  }
 }
 
 main().catch((err) => {

@@ -18,7 +18,7 @@ const errors = [
 
 export default function Showcase() {
   return (
-    <section id="showcase" className="px-5 py-24 md:px-6 md:py-40">
+    <section id="showcase" className="scroll-mt-20 px-5 py-24 md:px-6 md:py-40">
       <div className="mx-auto grid max-w-[1200px] items-center gap-12 md:grid-cols-2">
         <Reveal>
           <div className="relative mx-auto w-full max-w-[640px]">
@@ -52,13 +52,13 @@ export default function Showcase() {
         </Reveal>
 
         <Reveal className="text-center md:text-left">
-          <p className="text-xs uppercase tracking-wider text-white/50">
-            01 / See it work
+          <p className="font-mono-statement text-[13px] uppercase tracking-wider text-white/50">
+            See it work
           </p>
-          <h2 className="mt-4 text-3xl font-bold tracking-tight text-white md:text-4xl">
+          <h2 className="mt-4 font-display text-4xl font-extrabold tracking-tight text-white md:text-5xl">
             Continuity, caught.
           </h2>
-          <p className="mx-auto mt-4 max-w-md text-white/55 md:mx-0">
+          <p className="mx-auto mt-5 max-w-md text-lg leading-relaxed text-white/55 md:mx-0 md:text-xl">
             Mnemo scanned a page from Lore Olympus. Three breaks — caught
             before publish.
           </p>
@@ -71,7 +71,7 @@ export default function Showcase() {
             ))}
           </ul>
           <div className="mt-10">
-            <Pill href="#api" variant="outline">
+            <Pill href="#watch" variant="outline">
               See it scan a page
             </Pill>
           </div>

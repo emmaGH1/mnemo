@@ -1,49 +1,19 @@
-"use client";
-
-import { motion } from "framer-motion";
 import Pill from "./ui/Pill";
-import { heroUseVideo, OKX_AGENT_URL } from "@/config";
+import { OKX_AGENT_URL } from "@/config";
 
 export default function Hero() {
   return (
-    <section className="relative flex min-h-[80vh] items-center justify-center overflow-hidden px-5 pb-20 pt-28 md:min-h-[720px] md:px-6">
-      {/* background — Ken Burns still, or video when one lands */}
-      <div className="absolute inset-0">
-        {heroUseVideo ? (
-          <video
-            src="/videos/hero.mp4"
-            poster="/sample-page.png"
-            muted
-            autoPlay
-            loop
-            playsInline
-            className="h-full w-full object-cover opacity-50 md:opacity-100"
-          />
-        ) : (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src="/sample-page.png"
-            alt=""
-            aria-hidden
-            className="kenburns h-full w-full object-cover opacity-50 md:opacity-100"
-          />
-        )}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/60 to-black" />
-      </div>
+    <section className="relative flex min-h-[85vh] items-center justify-center overflow-hidden bg-black px-5 pb-24 pt-32 md:min-h-[760px] md:px-6">
+      {/* CSS-only background — visible grid + slow gradient mesh + spotlight */}
+      <div aria-hidden className="hero-grid absolute inset-0" />
+      <div aria-hidden className="hero-mesh absolute inset-0" />
+      <div aria-hidden className="hero-spotlight absolute inset-0" />
 
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.6, ease: "easeOut" }}
-        className="relative z-10 mx-auto max-w-3xl text-center"
-      >
-        <p className="mb-6 text-xs uppercase tracking-wider text-white/60">
-          Agent 6211 on OKX.AI
-        </p>
-        <h1 className="mx-auto max-w-2xl text-4xl font-bold tracking-tight text-white md:text-7xl">
+      <div className="relative z-10 mx-auto max-w-4xl text-center">
+        <h1 className="mx-auto max-w-3xl font-display text-5xl font-extrabold leading-[0.95] tracking-tight text-white md:text-8xl">
           Continuity for serialized webtoon art.
         </h1>
-        <p className="mx-auto mt-6 max-w-xl text-base text-white/55 md:text-lg">
+        <p className="mx-auto mt-7 max-w-xl text-lg leading-relaxed text-white/55 md:text-xl">
           An agent that watches every page you ship, flags what doesn&rsquo;t
           match, and remembers so you never have to.
         </p>
@@ -52,7 +22,7 @@ export default function Hero() {
             href={OKX_AGENT_URL}
             className="w-full justify-center sm:w-auto"
           >
-            Use on OKX.AI ↗
+            Use on OKX.AI
           </Pill>
           <Pill
             href="#use"
@@ -62,7 +32,7 @@ export default function Hero() {
             See how it works
           </Pill>
         </div>
-      </motion.div>
+      </div>
     </section>
   );
 }

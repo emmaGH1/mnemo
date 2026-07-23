@@ -16,6 +16,7 @@ npm start                # Start compiled server
 npx tsx scripts/scrape-webtoon-id.ts <base> <title_no> <series_id> --episodes 1-3
 npx tsx scripts/build-canon.ts <series_id> [--episodes 1-3]
 npx tsx src/test.ts [series_id]
+node scripts/listing-assets.js   # regenerate frontend/public/listing-avatar.jpg (OKX square avatar)
 ```
 
 ## Project structure

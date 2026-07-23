@@ -45,13 +45,13 @@ export default function MobileMenu({ open, onClose, links }: MobileMenuProps) {
             </svg>
           </button>
 
-          <nav className="flex flex-1 flex-col items-center justify-center gap-6">
+          <nav className="flex flex-1 flex-col items-center justify-center gap-8">
             {links.map((l) => (
               <Link
                 key={l.label}
                 href={l.href}
                 onClick={onClose}
-                className="text-3xl font-medium text-white/85 transition-colors hover:text-white"
+                className="text-4xl font-medium text-white/85 transition-colors hover:text-white"
               >
                 {l.label}
               </Link>
@@ -60,7 +60,7 @@ export default function MobileMenu({ open, onClose, links }: MobileMenuProps) {
 
           <div className="flex flex-col gap-3 px-6 pb-10">
             <Pill href={OKX_AGENT_URL} className="w-full justify-center">
-              Use on OKX.AI ↗
+              Use on OKX.AI
             </Pill>
           </div>
         </motion.div>

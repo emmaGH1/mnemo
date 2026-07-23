@@ -1,0 +1,39 @@
+[
+  {
+    "page": "ep003_p01",
+    "flags": [],
+    "canon_additions": [
+      { "type": "attribute", "data": { "field": "hair_color", "value": "pink", "ep": 3, "panel": 1 } },
+      { "type": "attribute", "data": { "field": "hair_style", "value": "short, spiky/layered", "ep": 3, "panel": 1 } },
+      { "type": "attribute", "data": { "field": "facial_features", "value": "freckles on cheeks", "ep": 3, "panel": 1 } }
+    ]
+  },
+  {
+    "page": "ep003_p05",
+    "flags": [
+      { "severity": "high", "character": "Hades", "field": "eye_color", "canon": "gold", "page": "white/light grey" },
+      { "severity": "high", "character": "Hades", "field": "usual_attire", "canon": "dark formal suit", "page": "light-colored jacket/suit" }
+    ],
+    "canon_additions": [
+      { "type": "attribute", "data": { "field": "Hades.hair_style", "value": "slicked back, longer at sides", "ep": 3, "panel": 5 } },
+      { "type": "attribute", "data": { "field": "Hades.jacket_color", "value": "light grey", "ep": 3, "panel": 5 } }
+    ]
+  },
+  {
+    "page": "ep003_p08",
+    "flags": [],
+    "canon_additions": [
+      { "type": "attribute", "data": { "field": "Persephone.hair_color", "value": "pink with rose crown", "ep": 3, "panel": 8 } },
+      { "type": "attribute", "data": { "field": "Persephone.outfit", "value": "white and gold chiton", "ep": 3, "panel": 8 } }
+    ]
+  },
+  {
+    "page": "ep003_p12",
+    "flags": [
+      { "severity": "medium", "character": "Hades", "field": "eye_color", "canon": "gold", "page": "blue" }
+    ],
+    "canon_additions": [
+      { "type": "event", "data": { "field": "description", "value": "Hades comforts Persephone in the underworld garden", "ep": 3, "panel": 12 } }
+    ]
+  }
+]

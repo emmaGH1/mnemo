@@ -69,7 +69,7 @@ function printResult(label: string, result: ContinuityCheckResult): void {
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
-  console.log("\n🎨  Mnemo — Webtoon Continuity Checker  (Gemini 2.5 Flash)");
+  console.log("\n🎨  Mnemo — Webtoon Continuity Checker");
   console.log("─".repeat(70));
 
   // Load canon
