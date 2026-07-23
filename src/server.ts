@@ -68,7 +68,10 @@ const hasOKXCredentials = !!(OKX_API_KEY && OKX_SECRET_KEY && OKX_PASSPHRASE);
 // Used when OKX credentials are absent OR when web3.okx.com is unreachable
 // (e.g. sandbox/CI with no outbound DNS). getSupported() resolves immediately
 // so initialize() succeeds and the middleware can issue proper 402 responses.
-// verify() and settle() throw — genuine payments are never accepted in stub mode.
+// verify() and settle() return {isValid:false} / {success:false} — the SDK
+// translates these into a proper 402 response with invalidReason in the body,
+// so the paid POST never crashes the request. Genuine payments are still
+// rejected in stub mode (no real facilitator, no settlement).
 // ─────────────────────────────────────────────────────────────────────────────
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const stubFacilitatorClient: any = {
@@ -80,13 +83,25 @@ const stubFacilitatorClient: any = {
     };
   },
   async verify() {
-    throw new Error("Stub facilitator: cannot verify real payments without OKX credentials.");
+    return {
+      isValid: false,
+      invalidReason: "stub_mode",
+      invalidMessage: "Facilitator unavailable — real OKX credentials required for payment verification.",
+      payer: "0x0000000000000000000000000000000000000000",
+    };
   },
   async settle() {
-    throw new Error("Stub facilitator: cannot settle real payments without OKX credentials.");
+    return {
+      success: false,
+      errorReason: "stub_mode",
+      status: "timeout",
+      transaction: "",
+      network: "eip155:196",
+      payer: "0x0000000000000000000000000000000000000000",
+    };
   },
   async getSettleStatus() {
-    throw new Error("Stub facilitator: not implemented without OKX credentials.");
+    return { success: false, status: "timeout", errorReason: "stub_mode" };
   },
 };
 
@@ -339,7 +354,45 @@ function with402Body(mw: express.RequestHandler): express.RequestHandler {
       }
       return origJson(body);
     }) as typeof res.json;
-    return mw(req, res, next);
+
+    // Safety net: catch any thrown error from the x402 middleware and
+    // return a proper 402 with error details. Without this, a facilitator
+    // error (network, invalid signature, timeout) causes the promise to
+    // reject and the connection to die with no HTTP response — which the
+    // OKX.AI validator reports as "replayStatus=0, error sending request".
+    // paymentMiddleware returns Promise<void> at runtime; express's
+    // RequestHandler type lies and says void, so we cast through unknown.
+    const mwPromise = mw(req, res, next) as unknown as Promise<unknown> | undefined;
+    if (mwPromise && typeof mwPromise.catch === "function") {
+      mwPromise.catch((err: Error) => {
+        if (res.headersSent) return; // can't change response now
+        console.error(`[x402] middleware error on ${req.method} ${req.path}:`, err.message);
+        res.status(402).json({
+          x402Version: 2,
+          error: "Payment processing failed",
+          errorReason: err.message || "unknown",
+          resource: {
+            url: `${req.protocol}://${req.get("host")}${req.originalUrl}`,
+            description: "x402 payment processing error",
+            mimeType: "application/json",
+          },
+          accepts: [],
+        });
+      });
+    }
+
+    // Timeout: cap the x402 middleware at 25s. If the facilitator hangs
+    // (e.g. web3.okx.com is reachable for DNS but the API is slow), the
+    // OKX.AI validator's HTTP client gives up before our middleware
+    // returns — the validator reports "replayStatus=0". Returning a
+    // proper 402 with a timeout error keeps the request lifecycle clean.
+    const timeoutMs = 25_000;
+    const timeoutPromise = new Promise<void>((_, reject) => {
+      setTimeout(() => reject(new Error(`x402 middleware timeout after ${timeoutMs}ms`)), timeoutMs);
+    });
+    return mwPromise
+      ? Promise.race([mwPromise, timeoutPromise])
+      : timeoutPromise;
   };
 }
 

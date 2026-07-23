@@ -1,6 +1,6 @@
 {
   "phase": "4",
-  "phase_name": "Demo video prep",
+  "phase_name": "x402 fix + OKX.AI resubmit",
   "status": "complete",
   "completed": {
     "4.1": "End-to-end verified: Express on :3000, Next.js builds, all APIs respond correctly",
@@ -14,7 +14,8 @@
     "4.9": "ASP reframe: site is now an OKX.AI marketplace marketing page — hero Ken Burns bg + 'Agent 6211' routing, Pricing DELETED (no tiers, price is '0.1 USDT per check' in HowToUse), prompt-template centerpiece with copy button, Particles/HowItWorks deleted, all CTAs route to okx.ai/agents/6211, build + dev verified",
     "4.10": "OKX.AI listing refresh: square listing-avatar.jpg (1408x1408, full new logo on black) generated from logo-with-name.jpg, branded copy written to docs/okx-listing.md, scripts/listing-assets.js for re-render, internal Logo component already uses new SVG mark so demo site stays consistent",
     "4.11": "Pushed the update LIVE to okx.ai/agents/6211 via onchainos CLI (wallet emma080355@gmail.com). Avatar uploaded to OKX CDN, agent description and picture updated on-chain (tx 0x44b9...), service id 34794 description updated and duplicate id 36449 deleted (tx 0xd164...). Listing now reads 'Continuity, kept. The memory layer for serialized webtoon and comic art.' with the new full logo. Status flipped to 'Listing under review' (~24h re-approval). docs/okx-listing.md rewritten to record the live state, the re-push commands, and the gotchas (PowerShell JSON mangling, 500-char serviceDescription cap, delete still requires all fields, re-review on every update)",
-    "4.12": "record-loops segment 3 fix: build-canon --test was forwarding lore-olympus to src/test.ts, but the test images are of the synthetic Aria character (legacy data/canon.json 'Echoes of Aria'). Decoupled --test from the built series — it now always runs against the Aria fixture so the test passes. Also dropped the hardcoded 'Gemini 2.5 Flash' from build-canon and test.ts headers (model is dynamic across the fallback list). Segment 3 is now recordable as a clean build → test loop."
+    "4.12": "record-loops segment 3 fix: build-canon --test was forwarding lore-olympus to src/test.ts, but the test images are of the synthetic Aria character (legacy data/canon.json 'Echoes of Aria'). Decoupled --test from the built series — it now always runs against the Aria fixture so the test passes. Also dropped the hardcoded 'Gemini 2.5 Flash' from build-canon and test.ts headers (model is dynamic across the fallback list). Segment 3 is now recordable as a clean build → test loop.",
+    "4.13": "x402 wire-format fix for OKX.AI re-review (rejected with 'x402 standard validation' on first submit). Three issues in the 402 challenge emitted by @okxweb3/x402-express: (a) resource.url was http:// behind the Railway proxy — added `app.set('trust proxy', true)` so X-Forwarded-Proto sets req.protocol; (b) paymentMiddleware writes the PaymentRequired JSON only to the `payment-required` header, leaving the body as `{}` — added with402Body() interceptor that decodes the header and emits the PaymentRequired as the body on 402; (c) resource.mimeType was empty — set `mimeType: 'application/json'` on both route configs. Live-verified on mnemo-production-c4f1.up.railway.app: GET/POST /mcp both return 402 with `https://` resource.url, `application/json` mimeType, and the full PaymentRequired JSON in the body. Test A (unpaid → 402) still passes. Commit d7902f8 pushed to master, Railway auto-deployed. Ready to resubmit to OKX.AI."
   },
   "key_urls": {
     "demo_site": "http://localhost:3001",
@@ -29,8 +30,8 @@
     "browser": "http://localhost:3001"
   },
   "next_steps_for_user": [
+    "Resubmit Mnemo to OKX.AI review via chat — wire-format fix is live (commit d7902f8 deployed to Railway)",
     "Record demo video following scripts/demo-script.md",
-    "Deploy Express API to hosting (Railway / DigitalOcean / Vercel?)",
     "Deploy demo site to Vercel (free)",
     "Submit to OKX.AI Hackathon"
   ]
