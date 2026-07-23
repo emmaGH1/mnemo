@@ -43,7 +43,7 @@ export default function RootLayout({
       lang="en"
       className={`${inter.variable} ${bricolage.variable} ${rubikMono.variable} ${oi.variable}`}
     >
-      <body className="bg-black text-white antialiased">
+      <body className="bg-black text-white antialiased" suppressHydrationWarning>
         {children}
         <Cursor />
       </body>

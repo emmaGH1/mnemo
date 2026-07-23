@@ -10,9 +10,9 @@ const videos = [
     label: "Watch the agent",
     bar: "watch",
     videoSrc: "/videos/watch.mp4",
-    posterSrc: "/videos/watch-poster.jpg",
+    posterSrc: "/videos/watch_poster.png",
     duration: "0:42",
-    ready: false,
+    ready: true,
   },
   {
     id: "02",
@@ -22,9 +22,9 @@ const videos = [
     description:
       "Run a single page through the checker. Continuity breaks are flagged inline with the panel they came from.",
     videoSrc: "/videos/check.mp4",
-    posterSrc: "/videos/check-poster.jpg",
+    posterSrc: "/videos/check_poster.png",
     duration: "0:38",
-    ready: false,
+    ready: true,
     align: "right" as const,
   },
   {
