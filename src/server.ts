@@ -446,7 +446,7 @@ const x402Routes = {
       payTo: AGENTIC_WALLET_ADDRESS,
       tokenAddress: USDT_X_LAYER,
     },
-    description: "MCP discovery / SSE endpoint — $0.10 USDT per call (X Layer)",
+    description: "MCP paid discovery — $0.10 USDT per call (X Layer)",
     mimeType: "application/json",
   },
 };
