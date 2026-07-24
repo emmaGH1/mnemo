@@ -1,8 +1,12 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// checker.ts  — core Gemini-powered continuity check function
+// checker.ts  — core continuity check function
+//
+// Routes Gemini 2.5 Flash via OpenRouter (OpenAI-compatible API).
+// To pay Gemini directly instead, swap `getClient()` → Google SDK; the rest
+// of the call shape is identical because Gemini honors OpenAI's chat format.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import OpenAI from "openai";
 import type { CanonDoc, ContinuityCheckResult } from "./types.js";
 
 // ---------------------------------------------------------------------------
@@ -31,68 +35,44 @@ CRITICAL RULES:
 - canon_additions: [] is correct and expected on most pages. Empty is the right answer when there is nothing new and fully observable.
 - Frame every flag as something for the artist to review, never as an automatic correction. You are not the final judge — they are.
 
-Respond with ONLY valid JSON matching the provided schema. No preamble, no markdown formatting, no explanation outside the JSON structure.`;
+Respond with ONLY valid JSON. No preamble, no markdown formatting, no explanation outside the JSON structure. The JSON must have this exact shape:
 
-// ---------------------------------------------------------------------------
-// Structured output schema
-// (cast to any — the library's TS types don't play well with const-narrowed
-// objects; runtime behaviour is correct regardless)
-// ---------------------------------------------------------------------------
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const responseSchema: any = {
-  type: "object",
-  properties: {
-    flags: {
-      type: "array",
-      items: {
-        type: "object",
-        properties: {
-          severity: { type: "string", enum: ["low", "medium", "high"] },
-          character: { type: "string" },
-          field: { type: "string" },
-          canon_value: { type: "string" },
-          new_value: { type: "string" },
-          ep_ref: { type: "integer" },
-          panel_ref: { type: "integer" },
-          explanation: { type: "string" },
-        },
-        required: ["severity", "character", "field", "canon_value", "new_value", "explanation"],
-      },
-    },
-    canon_additions: {
-      type: "array",
-      items: {
-        type: "object",
-        properties: {
-          type: { type: "string", enum: ["character", "attribute", "relationship", "event"] },
-          data: {
-            type: "object",
-            properties: {
-              field: { type: "string" },
-              value: { type: "string" },
-              ep: { type: "integer" },
-              panel: { type: "integer" }
-            },
-            required: ["field", "value", "ep", "panel"]
-          }
-        },
-        required: ["type", "data"]
+{
+  "flags": [
+    {
+      "severity": "low" | "medium" | "high",
+      "character": string,
+      "field": string,
+      "canon_value": string,
+      "new_value": string,
+      "ep_ref": number,
+      "panel_ref": number,
+      "explanation": string
+    }
+  ],
+  "canon_additions": [
+    {
+      "type": "character" | "attribute" | "relationship" | "event",
+      "data": {
+        "field": string,
+        "value": string,
+        "ep": number,
+        "panel": number
       }
-    },
-  },
-  required: ["flags", "canon_additions"],
-};
+    }
+  ]
+}`;
 
 // ---------------------------------------------------------------------------
-// Model setup — fallback list covers legacy + new-API-key model availability
+// Model setup — fallback list covers OpenRouter model availability
 // ---------------------------------------------------------------------------
 // ponytail: legacy keys get gemini-2.5-flash, new keys may get 404'd there
 // and silently fall through to lite/latest. First successful model is cached
 // so subsequent calls skip the retry loop. Order = preference, not required.
 const MODEL_FALLBACKS = [
-  "gemini-2.5-flash",
-  "gemini-2.5-flash-lite",
-  "gemini-flash-latest",
+  "google/gemini-2.5-flash",
+  "google/gemini-2.5-flash-lite",
+  "google/gemini-flash-latest",
 ] as const;
 
 let activeModel: string | null = null;
@@ -101,17 +81,10 @@ export function getActiveModel(): string {
   return activeModel ?? MODEL_FALLBACKS[0];
 }
 
-function getModel(apiKey: string, modelName: string) {
-  const genAI = new GoogleGenerativeAI(apiKey);
-  return genAI.getGenerativeModel({
-    model: modelName,
-    systemInstruction: SYSTEM_PROMPT,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    generationConfig: {
-      temperature: 0.2,
-      responseMimeType: "application/json",
-      responseSchema,
-    } as any,
+function getClient(apiKey: string): OpenAI {
+  return new OpenAI({
+    apiKey,
+    baseURL: "https://openrouter.ai/api/v1",
   });
 }
 
@@ -126,7 +99,7 @@ function getModel(apiKey: string, modelName: string) {
  * @param pageImageBase64 - Base64-encoded PNG/JPEG of the new page.
  * @param mimeType       - MIME type of the image (default: "image/png").
  * @param dialogueText   - Optional raw dialogue/script text from this page.
- * @param apiKey         - Gemini API key (falls back to process.env.GEMINI_API_KEY).
+ * @param apiKey         - OpenRouter API key (falls back to process.env.OPENROUTER_API_KEY).
  * @param epNumber       - Optional episode number of this page (used verbatim in canon_additions).
  * @param panelNumber    - Optional panel number of this page (used verbatim in canon_additions).
  * @returns              - Parsed { flags, canon_additions } result.
@@ -136,13 +109,13 @@ export async function checkContinuity(
   pageImageBase64: string,
   mimeType: "image/png" | "image/jpeg" | "image/webp" = "image/png",
   dialogueText?: string,
-  apiKey: string = process.env.GEMINI_API_KEY ?? "",
+  apiKey: string = process.env.OPENROUTER_API_KEY ?? "",
   epNumber?: number,
   panelNumber?: number
 ): Promise<ContinuityCheckResult> {
   if (!apiKey) {
     throw new Error(
-      "GEMINI_API_KEY is required. Set it in your environment or pass it explicitly."
+      "OPENROUTER_API_KEY is required. Set it in your environment or pass it explicitly."
     );
   }
 
@@ -156,30 +129,42 @@ export async function checkContinuity(
   let lastErr: unknown = null;
   for (const modelName of candidates) {
     try {
-      const model = getModel(apiKey, modelName);
-      const result = await model.generateContent([
-        {
-          text: `Canon doc:\n${JSON.stringify(canonDoc, null, 2)}\n\nDialogue/script for this page:\n${dialogueText ?? "(none provided)"
-            }${pageLocation}`,
-        },
-        {
-          inlineData: {
-            mimeType,
-            data: pageImageBase64,
+      const client = getClient(apiKey);
+      const response = await client.chat.completions.create({
+        model: modelName,
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: `Canon doc:\n${JSON.stringify(canonDoc, null, 2)}\n\nDialogue/script for this page:\n${dialogueText ?? "(none provided)"}${pageLocation}`,
+              },
+              {
+                type: "image_url",
+                image_url: { url: `data:${mimeType};base64,${pageImageBase64}` },
+              },
+            ],
           },
-        },
-      ]);
+        ],
+        temperature: 0.2,
+        response_format: { type: "json_object" },
+      });
 
-      const raw = result.response.text();
+      const raw = response.choices[0]?.message?.content ?? "";
+      if (!raw) {
+        throw new Error("OpenRouter returned an empty response");
+      }
       activeModel = modelName;
       try {
         return JSON.parse(raw) as ContinuityCheckResult;
       } catch {
-        throw new Error(`Gemini returned non-JSON response:\n${raw}`);
+        throw new Error(`OpenRouter returned non-JSON response:\n${raw}`);
       }
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
-      if (/404|not found|no longer available/i.test(msg)) {
+      if (/404|not found|no longer available|model/i.test(msg)) {
         lastErr = e;
         continue;
       }
@@ -188,7 +173,7 @@ export async function checkContinuity(
   }
 
   throw new Error(
-    `No working Gemini model found. Tried: ${candidates.join(", ")}\nLast error: ${
+    `No working model found on OpenRouter. Tried: ${candidates.join(", ")}\nLast error: ${
       lastErr instanceof Error ? lastErr.message : String(lastErr)
     }`
   );
