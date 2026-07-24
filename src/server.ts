@@ -196,15 +196,9 @@ function createMcpServer(): McpServer {
         if (canon) {
           try {
             canonOverride = JSON.parse(canon) as CanonDoc;
-          } catch (parseErr) {
-            return {
-              isError: true,
-              content: [{ type: "text" as const, text: JSON.stringify({
-                error: "Invalid canon JSON",
-                detail: parseErr instanceof Error ? parseErr.message : String(parseErr),
-              }) }],
-            };
-          }
+            } catch (parseErr) {
+              throw new Error(JSON.stringify({ kind: "invalid_canon", detail: parseErr instanceof Error ? parseErr.message : String(parseErr) }));
+            }
         }
 
         const result = await runCheck(
@@ -223,19 +217,10 @@ function createMcpServer(): McpServer {
           ],
         };
       } catch (err: unknown) {
-        // Never let a tool error crash the MCP transport — return a proper
-        // JSON-RPC error result so the buyer gets an actionable response
-        // instead of an HTML 500 page.
         const message = err instanceof Error ? err.message : String(err);
         const isQuota = /quota|429|too many requests|rate limit/i.test(message);
         console.error(`[check-continuity error${isQuota ? " (quota)" : ""}]`, message);
-        return {
-          isError: true,
-          content: [{ type: "text" as const, text: JSON.stringify({
-            error: isQuota ? "quota_exceeded" : "continuity_check_failed",
-            detail: message,
-          }) }],
-        };
+        throw new Error(JSON.stringify({ kind: isQuota ? "quota_exceeded" : "continuity_check_failed", detail: message }));
       }
     }
   );
@@ -419,18 +404,8 @@ function with402Body(mw: express.RequestHandler): express.RequestHandler {
       });
     }
 
-    // Timeout: cap the x402 middleware at 25s. If the facilitator hangs
-    // (e.g. web3.okx.com is reachable for DNS but the API is slow), the
-    // OKX.AI validator's HTTP client gives up before our middleware
-    // returns — the validator reports "replayStatus=0". Returning a
-    // proper 402 with a timeout error keeps the request lifecycle clean.
-    const timeoutMs = 25_000;
-    const timeoutPromise = new Promise<void>((_, reject) => {
-      setTimeout(() => reject(new Error(`x402 middleware timeout after ${timeoutMs}ms`)), timeoutMs);
-    });
-    return mwPromise
-      ? Promise.race([mwPromise, timeoutPromise])
-      : timeoutPromise;
+    // ponytail: no outer timeout — the SDK owns the full lifecycle (verify → execute → settle). Race-wrapping skipped settlement mid-flight, see OKX rejection.
+    return mwPromise;
   };
 }
 
@@ -630,6 +605,7 @@ async function startServer(): Promise<void> {
         return;
       }
       await handleMcpHttp(req, res, body);
+    // ponytail: tool errors must not charge — throw instead of returning isError so the x402 middleware sees statusCode>=400 and skips settlement.
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       const stack = err instanceof Error ? err.stack : undefined;
@@ -637,7 +613,11 @@ async function startServer(): Promise<void> {
       const status = isQuota ? 429 : 500;
       console.error(`[/mcp POST error ${status}]`, message);
       if (stack) console.error(stack);
-      if (!res.headersSent) res.status(status).json({ error: message, kind: isQuota ? "quota_exceeded" : "server_error" });
+      if (!res.headersSent) res.status(status).json({
+        jsonrpc: "2.0",
+        error: { code: isQuota ? -32029 : -32603, message: isQuota ? "quota_exceeded" : "internal_error", data: message },
+        id: null,
+      });
     }
   });
 
@@ -665,6 +645,7 @@ async function startServer(): Promise<void> {
     async (req: Request, res: Response) => {
     try {
       await handleMcpHttp(req, res);
+    // ponytail: tool errors must not charge — throw instead of returning isError so the x402 middleware sees statusCode>=400 and skips settlement.
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       const stack = err instanceof Error ? err.stack : undefined;
@@ -672,7 +653,11 @@ async function startServer(): Promise<void> {
       const status = isQuota ? 429 : 500;
       console.error(`[/mcp GET error ${status}]`, message);
       if (stack) console.error(stack);
-      if (!res.headersSent) res.status(status).json({ error: message, kind: isQuota ? "quota_exceeded" : "server_error" });
+      if (!res.headersSent) res.status(status).json({
+        jsonrpc: "2.0",
+        error: { code: isQuota ? -32029 : -32603, message: isQuota ? "quota_exceeded" : "internal_error", data: message },
+        id: null,
+      });
     }
   });
 

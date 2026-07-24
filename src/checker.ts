@@ -85,6 +85,8 @@ function getClient(apiKey: string): OpenAI {
   return new OpenAI({
     apiKey,
     baseURL: "https://openrouter.ai/api/v1",
+    timeout: 60_000,    // 60s per attempt — under the x402 auth window with headroom
+    maxRetries: 1,      // one transient retry; SDK uses exponential backoff
   });
 }
 

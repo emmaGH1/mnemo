@@ -1,18 +1,11 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// probe-tools-call.ts  — Full paid-path smoke test with a real tools/call.
+// probe-tools-call.ts — Strict paid-path canary.
 //
-// Why this exists: OKX.AI's validator settled $0.1 USDT (tx 0x37f051d3) then
-// hit an HTML 500 page from the MCP handler. The existing probe-paid-replay.ts
-// only tests tools/list — it never exercised the Gemini path. This probe:
-//   1. Sends an unpaid tools/call → expects 402 with valid PaymentRequired
-//   2. Signs a payment payload
-//   3. Sends a paid tools/call with the real Aria test image → expects 200
-//      with a JSON-RPC result (flags + canon_additions), or a JSON-RPC
-//      error result if Gemini fails (NOT an HTML 500 page).
-//
-// Uses the test payer private key from .env (unfunded). The settle step
-// will fail on-chain, but verify() should still pass (off-chain signature
-// check). The handler should then run and return a proper JSON-RPC response.
+// REQUIRES: HTTP 200, valid JSON-RPC 2.0 body, no .error, .result.content
+//           present, and a PAYMENT-RESPONSE settlement header.
+// ANYTHING ELSE is FAIL with exit 1 — no more permissive passes.
+// Catches the OKX reviewer's -32603 internal_error / x402 middleware timeout
+// / missing txHash failure mode decisively.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import * as https from "https";
@@ -31,6 +24,12 @@ interface HttpResponse {
   body: string;
 }
 
+const CLIENT_TIMEOUT_MS = 180_000; // 3 min — x402 auth window is 300s; OpenRouter is 60s+retry
+
+function withTimeout(req: any, ms: number): void {
+  req.setTimeout(ms);
+}
+
 function httpsRequest(
   path: string,
   method: string,
@@ -39,7 +38,7 @@ function httpsRequest(
 ): Promise<HttpResponse> {
   return new Promise((resolve, reject) => {
     const req = https.request(
-      { hostname: HOST, port: 443, path, method, headers },
+      { hostname: HOST, port: 443, path, method, headers, timeout: CLIENT_TIMEOUT_MS },
       (res) => {
         let data = "";
         res.on("data", (chunk: Buffer) => { data += chunk.toString(); });
@@ -53,6 +52,7 @@ function httpsRequest(
       }
     );
     req.on("error", reject);
+    req.on("timeout", () => req.destroy(new Error(`client timeout after ${CLIENT_TIMEOUT_MS}ms`)));
     if (body) req.write(body);
     req.end();
   });
@@ -122,6 +122,7 @@ async function main() {
 
   // ── Step 3: Paid tools/call → expect 200 with JSON-RPC result ──────────────
   console.log("\nStep 3: Paid tools/call (should return 200 JSON-RPC)...");
+  const step3Start = Date.now();
   const paid = await httpsRequest("/mcp", "POST", {
     "Content-Type": "application/json",
     "Content-Length": String(Buffer.byteLength(mcpBody)),
@@ -132,94 +133,87 @@ async function main() {
   console.log(`  Status: ${paid.statusCode}`);
   console.log(`  Content-Type: ${paid.headers["content-type"] ?? "(none)"}`);
   console.log(`  Body[:600]: ${paid.body.slice(0, 600)}`);
+  const paidElapsedMs = Date.now() - step3Start;
+  console.log(`  Elapsed: ${paidElapsedMs}ms`);
 
-  // ── Step 4: Interpret the result ────────────────────────────────────────────
-  //
-  // What we want to see:
-  //   • Status 200, Content-Type: application/json
-  //   • Body is a JSON-RPC response ({"jsonrpc":"2.0", "result":...} or
-  //     {"jsonrpc":"2.0", "error":...})
-  //   • NO HTML 500 page (the original failure mode)
-  //
-  // Acceptable outcomes:
-  //   • 200 + {"result":{"content":[{"text":"{\"flags\":[...]...}}"]}}
-  //     — verify + settle + Gemini all succeeded
-  //   • 200 + {"error":{"code":-32603,"message":"internal_error"}}
-  //     — verify/settle succeeded but Gemini failed; the global error
-  //     handler caught it and returned a proper JSON-RPC error
-  //   • 402 + {"error":"settle_failed"} — verify passed, settle failed
-  //     (unfunded wallet). The key check: still JSON, still 4xx, NOT 500.
-  //
-  // Failure modes (what we DON'T want):
-  //   • 500 with <!DOCTYPE html>... in the body
-  //   • Empty body
-  //   • Connection reset / timeout
+  // Step 4: Interpret the result — strict canary.
+  // Pass requires: HTTP 200, JSON body, JSON-RPC 2.0, no .error, has .result.content,
+  // and a payment-response header proving settlement actually happened.
+  console.log("\nStep 4: Strict canary interpretation...");
 
-  if (paid.statusCode === 200) {
-    // Parse the body — must be JSON, not HTML
-    let parsed: any;
-    try {
-      parsed = JSON.parse(paid.body);
-    } catch {
-      console.log("  ❌ FAIL — 200 response but body is not valid JSON");
-      console.log(`  Body: ${paid.body.slice(0, 300)}`);
-      process.exit(1);
-    }
-
-    if (parsed.jsonrpc !== "2.0") {
-      console.log("  ❌ FAIL — 200 response but body is not JSON-RPC 2.0");
-      console.log(`  Body: ${paid.body.slice(0, 300)}`);
-      process.exit(1);
-    }
-
-    if (parsed.result) {
-      console.log("  ✅ PASS — 200 + JSON-RPC result (tools/call succeeded)");
-      if (parsed.result.content?.[0]?.text) {
-        try {
-          const inner = JSON.parse(parsed.result.content[0].text);
-          console.log(`  flags: ${inner.flags?.length ?? 0}, canon_additions: ${inner.canon_additions?.length ?? 0}`);
-        } catch {
-          // inner text wasn't JSON — that's fine, it's just the tool output
-        }
-      }
-      process.exit(0);
-    }
-
-    if (parsed.error) {
-      console.log("  ✅ PASS — 200 + JSON-RPC error (tool failed gracefully, no HTML 500)");
-      console.log(`  error code: ${parsed.error.code}, message: ${parsed.error.message}`);
-      process.exit(0);
-    }
-
-    console.log("  ❌ FAIL — 200 response but no result or error field");
+  if (paid.statusCode !== 200) {
+    console.log(`  ❌ FAIL — expected 200, got ${paid.statusCode}. Content-Type: ${paid.headers["content-type"] ?? "(none)"}.`);
+    console.log(`  Body[:400]: ${paid.body.slice(0, 400)}`);
     process.exit(1);
   }
 
-  if (paid.statusCode === 402) {
-    // Settle failed (unfunded wallet). Still JSON, still actionable.
-    let parsed: any;
-    try {
-      parsed = JSON.parse(paid.body);
-    } catch {
-      console.log("  ⚠️  402 with non-JSON body (unexpected)");
-      process.exit(0); // not a 500, so the transport fix worked
-    }
-    console.log("  ✅ PASS — 402 (settle rejected, not 500). Error:", parsed.error?.message ?? parsed.errorReason ?? "unknown");
-    process.exit(0);
-  }
-
-  if (paid.statusCode === 500) {
-    console.log("  ❌ FAIL — 500 response (the original bug)");
-    if (paid.body.startsWith("<!DOCTYPE") || paid.body.startsWith("<html")) {
-      console.log("  ❌ FAIL — 500 body is HTML (the original failure mode)");
-    } else {
-      console.log(`  Body[:200]: ${paid.body.slice(0, 200)}`);
-    }
+  let parsed: any;
+  try {
+    parsed = JSON.parse(paid.body);
+  } catch {
+    console.log("  ❌ FAIL — 200 response but body is not valid JSON.");
+    console.log(`  Body[:400]: ${paid.body.slice(0, 400)}`);
     process.exit(1);
   }
 
-  console.log(`  ⚠️  Unexpected status ${paid.statusCode}`);
-  console.log(`  Body[:200]: ${paid.body.slice(0, 200)}`);
+  if (parsed.jsonrpc !== "2.0") {
+    console.log("  ❌ FAIL — 200 response but body is not JSON-RPC 2.0.");
+    console.log(`  Body[:400]: ${paid.body.slice(0, 400)}`);
+    process.exit(1);
+  }
+
+  if (parsed.error) {
+    const code = parsed.error?.code;
+    const msg = parsed.error?.message ?? "";
+    const data = parsed.error?.data ?? "";
+    const isOKXRejection =
+      code === -32603 ||
+      /x402 middleware timeout/i.test(data) ||
+      /x402 middleware timeout/i.test(msg) ||
+      /internal_error/i.test(msg);
+    if (isOKXRejection) {
+      console.log("  ❌ FAIL — OKX REJECTION RECREATED: -32603 / x402 middleware timeout / internal_error.");
+      console.log(`  code=${code} message=${msg} data=${data}`);
+      process.exit(1);
+    }
+    console.log(`  ❌ FAIL — JSON-RPC error returned. code=${code} message=${msg}`);
+    process.exit(1);
+  }
+
+  if (!parsed.result || !Array.isArray(parsed.result.content) || parsed.result.content.length === 0) {
+    console.log("  ❌ FAIL — 200 response missing parsed.result.content (no tool output).");
+    console.log(`  Body[:400]: ${paid.body.slice(0, 400)}`);
+    process.exit(1);
+  }
+
+  if (parsed.result.isError) {
+    console.log("  ❌ FAIL — tool returned isError:true; settlement would have been skipped (good!) but the canary requires a real continuity result.");
+    process.exit(1);
+  }
+
+  // Try to parse the first text content as JSON; print flag/addition counts
+  let inner: any = null;
+  try {
+    const text = parsed.result.content[0]?.text;
+    if (typeof text === "string") inner = JSON.parse(text);
+  } catch { /* not JSON is OK as long as content was non-empty */ }
+
+  // Settlement proof: the OKX SDK attaches a payment-response header post-settle.
+  const paymentResponse = paid.headers["payment-response"] ?? paid.headers["x-payment-response"];
+  if (!paymentResponse) {
+    console.log("  ❌ FAIL — missing PAYMENT-RESPONSE settlement header — settlement did not occur.");
+    console.log(`  All headers: ${Object.keys(paid.headers).join(", ")}`);
+    process.exit(1);
+  }
+
+  console.log("  ✅ PASS — 200 + JSON-RPC result + PAYMENT-RESPONSE settlement header.");
+  if (inner) {
+    console.log(`  flags: ${inner.flags?.length ?? 0}, canon_additions: ${inner.canon_additions?.length ?? 0}`);
+  } else {
+    const first = parsed.result.content[0]?.text ?? "";
+    console.log(`  content[0].text[:200]: ${String(first).slice(0, 200)}`);
+  }
+  console.log(`  payment-response[:80]: ${String(paymentResponse).slice(0, 80)}`);
   process.exit(0);
 }
 
