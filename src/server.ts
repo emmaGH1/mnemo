@@ -62,6 +62,18 @@ const OKX_SECRET_KEY = process.env.OKX_SECRET_KEY ?? "";
 const OKX_PASSPHRASE = process.env.OKX_PASSPHRASE ?? "";
 const hasOKXCredentials = !!(OKX_API_KEY && OKX_SECRET_KEY && OKX_PASSPHRASE);
 
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY ?? "";
+if (!OPENROUTER_API_KEY) {
+  // ponytail: log loud at startup — silent AI failure was hard to diagnose when
+  // Railway env var was set in the dashboard but the running container hadn't
+  // picked it up yet. Catches the issue on `npm run dev` / Railway boot logs.
+  console.warn(
+    "⚠️  [ai] OPENROUTER_API_KEY not set.\n" +
+      "    /check and /mcp will return HTTP 500 on tool calls (no continuity check possible).\n" +
+      "    Get a key at https://openrouter.ai/keys (card, PayPal, or crypto from $1)."
+  );
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Stub facilitator
 //

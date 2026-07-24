@@ -10,7 +10,12 @@
     "4.20": "check-balances.ts decimals bug fixed: was formatUnits(value, 18) for USDT, corrected to formatUnits(value, 6) at lines 33 and 45. USD₮0 on X Layer is 6 decimals, not 18. Bug had been masking the agentic wallet balance as 'dust' when it was actually $2.3.",
     "4.21": "Test payer wallet funded via onchainos wallet send (logged in as emma080355@gmail.com). Sent 0.5 USD₮0 from agentic wallet (0x4dbfa1e…47c99) to test wallet (0x8783545…2613). Tx 0x79f8cac93286821a9257562d5219aff7a5ccedd3e3cc5ced3ab22e2f4d064c69. Agentic went 2.3 → 1.8, test went 0 → 0.5. Gas sponsored by OKX paymaster — no OKB needed.",
     "4.22": "probe-tools-call.ts re-verified end-to-end with real funds. Unpaid → 402 ✅, sign ✅, paid → 200 + JSON-RPC result with Aria eye-color flag (high severity, blue → green-with-red-irises). Full 200 path confirmed live. Test wallet has ~0.4 USDT left = 4 more x402 calls.",
-    "4.23": "HIGH-priority cleanup batch: (a) AGENTS.md got a 'Re-pushing the OKX.AI listing' runbook section with the 4 gotchas + a 'Probes (re-verify before any resubmit)' section; (b) package.json gained probe:paid, probe:replay, listing:assets scripts; (c) frontend got sharp dep so next build is clean; (d) globals.css got :focus-visible keyboard focus rings (white 2px outline, 3px offset) that work even under .cursor-custom's cursor: none."
+    "4.23": "HIGH-priority cleanup batch: (a) AGENTS.md got a 'Re-pushing the OKX.AI listing' runbook section with the 4 gotchas + a 'Probes (re-verify before any resubmit)' section; (b) package.json gained probe:paid, probe:replay, listing:assets scripts; (c) frontend got sharp dep so next build is clean; (d) globals.css got :focus-visible keyboard focus rings (white 2px outline, 3px offset) that work even under .cursor-custom's cursor: none.",
+    "4.24": "OpenRouter refactor — Gemini 2.5 Flash now routed via OpenRouter's OpenAI-compatible API. Reason: Google AI Studio free tier keeps rate-limiting (429) and rejects virtual cards for paid billing; OpenRouter accepts card/PayPal/crypto (from $1) and forwards to Gemini. checker.ts swap: @google/generative-ai → openai SDK, baseURL=https://openrouter.ai/api/v1, model google/gemini-2.5-flash, response_format=json_object, kept the 100-line system prompt + 3-model fallback list verbatim. Local test:continuity passes (Aria eye-color flagged HIGH severity, blue → red/green).",
+    "4.25": "Env var rename: GEMINI_API_KEY → OPENROUTER_API_KEY. .env.example updated with OpenRouter signup instructions. Local .env updated.",
+    "4.26": "Test wallet re-funded via onchainos wallet send (tx 0xf074a03900d60d191d7697b717c17efcf469b70f3e406d61d17a12b99a347ad2). 0.5 USDT from agentic wallet to test wallet. Previous $0.4 drained during segment 3 recording session (multiple x402 calls to record the demo).",
+    "4.27": "probe:paid against deployed Railway after the OpenRouter push (commit 6c00e1a). x402 protocol path: 402 ✅, sign ✅, paid → 200 + JSON-RPC envelope ✅. Tool handler returned isError:true with body 'OPENROUTER_API_KEY is required' — the env var was set in Railway's dashboard but the running container hadn't picked it up yet. x402 + JSON-RPC + payment settlement all proven end-to-end; only the AI key plumbing remains. BLOCKED on Railway env var reload.",
+    "4.28": "Defensive: added startup warning to server.ts (after the OKX credentials check). If OPENROUTER_API_KEY is missing at boot, the server logs a loud ⚠️ [ai] warning naming the env var and the signup URL. Prevents silent AI failures in future deploys / local setups."
   },
   "key_urls": {
     "demo_site": "http://localhost:3001",
@@ -40,9 +45,10 @@
     "balance": "npx tsx scripts/check-balances.ts"
   },
   "next_steps_for_user": [
+    "Verify OPENROUTER_API_KEY is set in Railway → service Variables (case-sensitive, no whitespace), then redeploy the service (Railway sometimes needs an explicit redeploy for new env vars to reach the running container). Once done, tell me and I'll re-run `npm run probe:paid` to close out the OpenRouter canary.",
     "Wait for the existing OKX.AI 'Listing under review' cycle to clear (~24h from the last push) — no re-push needed for any of today's fixes; they're all repo-side",
-    "Record video segment 3 ('Tell your agent') — NOT blocked by listing status, just needs an x402-capable agent + a funded wallet; the HowToUse prompt + Copy button are already in the demo site, drop the .mp4 at frontend/public/videos/agent.mp4 to flip the card from [ RECORDING ] mock to real",
+    "Record video segment 3 ('Tell your agent') — DONE: agent.mp4 (2.9MB) and agent_poster.png (1.8MB) in frontend/public/videos/, VideoCards.tsx flipped to ready:true (poster path also fixed from agent-poster.jpg → agent_poster.png to match the file you placed)",
     "Vercel deploy of frontend (free, zero-config: `cd frontend && vercel`) — post-listing, can be done same day as the listing goes live",
-    "Optional polish: remove unused ts-node from devDeps, add engines field to package.json, delete orphaned sample-page.jpg (242KB), compress check_poster.png (216KB)"
+    "Optional polish: remove unused ts-node from devDeps, add engines field to package.json, delete orphaned sample-page.jpg (242KB), compress agent_poster.png (1.8MB → ~200KB) and check_poster.png (216KB → ~50KB)"
   ]
 }
