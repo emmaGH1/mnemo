@@ -13,6 +13,7 @@
     "test:payment": "tsx src/test-server.ts",
     "probe:paid": "tsx scripts/probe-tools-call.ts",
     "probe:replay": "tsx scripts/probe-paid-replay.ts",
+    "probe:okx": "tsx scripts/probe-okx-replay.ts",
     "listing:assets": "node scripts/listing-assets.js",
     "demo:3flags": "powershell -ExecutionPolicy Bypass -File scripts/demo-3-flags.ps1",
     "build": "tsc",

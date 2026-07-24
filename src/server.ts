@@ -341,6 +341,16 @@ app.set("trust proxy", true);
 // Continuity checks send base64 page images — default 100kb is too small.
 app.use(express.json({ limit: "15mb" }));
 
+// ponytail: installed OKX core's extractPayment ignores the legacy X-PAYMENT header.
+// Alias it to the canonical PAYMENT-SIGNATURE so paid GET /mcp discovery works.
+app.use("/mcp", (req: Request, _res: Response, next) => {
+  const legacyPayment = req.get("x-payment");
+  if (!req.get("payment-signature") && legacyPayment) {
+    req.headers["payment-signature"] = legacyPayment;
+  }
+  next();
+});
+
 // ─────────────────────────────────────────────────────────────────────────────
 // x402 402-body interceptor
 //
@@ -621,45 +631,34 @@ async function startServer(): Promise<void> {
     }
   });
 
-  // ─── GET /mcp  (x402 discovery probe fix → MCP transport) ──────────────────
+  // ─── GET /mcp  (paid discovery — JSON-RPC, no SSE) ──────────────────────────
   //
-  // OKX x402-check may send GET /mcp without text/event-stream in Accept.
-  // MCP's GET handler (handleGetRequest) hard-requires text/event-stream and
-  // would return 406 without this fix. Also force application/json so the
-  // Accept header is fully MCP-conformant for both GET and POST paths.
+  // OKX x402 review replays use GET /mcp for paid discovery. The x402 gate
+  // (with402Body) verifies payment, then this handler returns a static JSON-RPC
+  // tools list synchronously so settlement completes before OKX's 30s timeout.
+  // Long-lived SSE via handleMcpHttp is NOT used here — it never ends under
+  // x402 response buffering, causing 499 client-abort after ~29.9s.
   app.get(
     "/mcp",
-    (req: Request, _res: Response, next) => {
-      req.headers.accept = "application/json, text/event-stream";
-      for (let i = 0; i < req.rawHeaders.length; i += 2) {
-        if (req.rawHeaders[i].toLowerCase() === "accept") {
-          req.rawHeaders[i + 1] = "application/json, text/event-stream";
-          next();
-          return;
-        }
-      }
-      req.rawHeaders.push("accept", "application/json, text/event-stream");
-      next();
-    },
     with402Body(x402Mw),
-    async (req: Request, res: Response) => {
-    try {
-      await handleMcpHttp(req, res);
-    // ponytail: tool errors must not charge — throw instead of returning isError so the x402 middleware sees statusCode>=400 and skips settlement.
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      const stack = err instanceof Error ? err.stack : undefined;
-      const isQuota = /quota|429|too many requests|rate limit/i.test(message);
-      const status = isQuota ? 429 : 500;
-      console.error(`[/mcp GET error ${status}]`, message);
-      if (stack) console.error(stack);
-      if (!res.headersSent) res.status(status).json({
+    (_req: Request, res: Response) => {
+      res.json({
         jsonrpc: "2.0",
-        error: { code: isQuota ? -32029 : -32603, message: isQuota ? "quota_exceeded" : "internal_error", data: message },
         id: null,
+        result: {
+          service: "mnemo",
+          protocolVersion: "2025-03-26",
+          capabilities: { tools: {} },
+          tools: [
+            { name: "check-continuity", description: "Check a webtoon page image against series canon for continuity errors." },
+            { name: "register-series", description: "Register a series for continuity monitoring." },
+            { name: "get-alerts", description: "Retrieve continuity alerts for a registered series." },
+          ],
+          instructions: "Send JSON-RPC tools/list or tools/call requests with POST /mcp.",
+        },
       });
-    }
-  });
+    },
+  );
 
   // ─── DELETE /mcp  (Accept-header fix → MCP transport) ─────────────────────
   app.delete(
@@ -734,7 +733,7 @@ async function startServer(): Promise<void> {
       console.log(`     GET  /health       — liveness probe`);
       console.log(`     POST /check        — multipart REST (ungated, local dev)`);
       console.log(`     POST /mcp          — x402-gated MCP endpoint ($0.10 USDT, eip155:196)`);
-      console.log(`     GET  /mcp          — MCP SSE / capability negotiation`);
+      console.log(`     GET  /mcp          — x402-gated paid discovery (JSON-RPC tools list)`);
       console.log(`     DELETE /mcp        — MCP session teardown\n`);
     });
   }
