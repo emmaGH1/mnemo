@@ -1,0 +1,1 @@
+Mnemo is a paid MCP agent that checks webtoon / comic pages for character continuity drift. Send a page image; get back a JSON of every flag (severity, field, episode + panel refs, explanation) plus proposed canon additions.

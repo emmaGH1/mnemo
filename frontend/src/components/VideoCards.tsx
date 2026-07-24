@@ -35,9 +35,9 @@ const videos = [
     description:
       "Paste the prompt. Your agent pays 0.1 USDT via x402, calls Agent 6211, and ships you a flag list. No account, no API key.",
     videoSrc: "/videos/agent.mp4",
-    posterSrc: "/videos/agent-poster.jpg",
+    posterSrc: "/videos/agent_poster.png",
     duration: "0:48",
-    ready: false,
+    ready: true,
     align: "left" as const,
   },
 ];
