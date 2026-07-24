@@ -8,6 +8,9 @@
     "mnemo": "tsx scripts/mnemo.ts",
     "test:continuity": "tsx src/test.ts",
     "test:payment": "tsx src/test-server.ts",
+    "probe:paid": "tsx scripts/probe-tools-call.ts",
+    "probe:replay": "tsx scripts/probe-paid-replay.ts",
+    "listing:assets": "node scripts/listing-assets.js",
     "build": "tsc",
     "start": "node dist/server.js"
   },

@@ -1,41 +1,48 @@
 {
-  "phase": "4",
-  "phase_name": "x402 fix + OKX.AI resubmit",
+  "phase": "5",
+  "phase_name": "Post-3-round cleanup + listing readiness",
   "status": "complete",
   "completed": {
-    "4.1": "End-to-end verified: Express on :3000, Next.js builds, all APIs respond correctly",
-    "4.2": "Demo script written — scripts/demo-script.md (130-sec full version + 60-sec cut)",
-    "4.3": "Temp logs cleaned, stale processes killed",
-    "4.4": "Frontend rebuilt end-to-end: x.ai structure, AMOLED #000 + white-only, 7 sections (Nav/Hero/VideoCards/API/Stats/Pricing/Footer), build + dev verified on :3001",
-    "4.5": "Rework pass: SVG Logo component, Inter font, hamburger + MobileMenu overlay, hero tightened with animated underline + trust chips + Particles canvas, mobile responsive pass on all sections, build + dev verified",
-    "4.6": "Fix pass: Logo cap-height pairing, 512px SVG-rendered favicon (sharp), hero slop removed, opacity-only motion, x.ai-style stats, Screen Studio video layout (bare/right/left), minimal footer with xAI+OKX AI links, real pricing content, build + dev verified",
-    "4.7": "Tier 1 artist-first rework: new Showcase section (annotated real Lore Olympus page), hero leads with value prop, API section demoted below pricing, 3-tier monthly pricing (Free/Pro/Studio, no crypto jargon), audience footer, build + dev verified",
-    "4.8": "Tier 1.5 model correction: pricing rewritten to x402 pay-per-call ($0.10/call + $8 credit pack + Studio volume), Stats section deleted, HowItWorks 3-step section added, video placeholders replaced with static terminal/diff/JSON mocks + [RECORDING] chip, footer wrap fixed, build + dev verified",
-    "4.9": "ASP reframe: site is now an OKX.AI marketplace marketing page — hero Ken Burns bg + 'Agent 6211' routing, Pricing DELETED (no tiers, price is '0.1 USDT per check' in HowToUse), prompt-template centerpiece with copy button, Particles/HowItWorks deleted, all CTAs route to okx.ai/agents/6211, build + dev verified",
-    "4.10": "OKX.AI listing refresh: square listing-avatar.jpg (1408x1408, full new logo on black) generated from logo-with-name.jpg, branded copy written to docs/okx-listing.md, scripts/listing-assets.js for re-render, internal Logo component already uses new SVG mark so demo site stays consistent",
-    "4.11": "Pushed the update LIVE to okx.ai/agents/6211 via onchainos CLI (wallet emma080355@gmail.com). Avatar uploaded to OKX CDN, agent description and picture updated on-chain (tx 0x44b9...), service id 34794 description updated and duplicate id 36449 deleted (tx 0xd164...). Listing now reads 'Continuity, kept. The memory layer for serialized webtoon and comic art.' with the new full logo. Status flipped to 'Listing under review' (~24h re-approval). docs/okx-listing.md rewritten to record the live state, the re-push commands, and the gotchas (PowerShell JSON mangling, 500-char serviceDescription cap, delete still requires all fields, re-review on every update)",
-    "4.12": "record-loops segment 3 fix: build-canon --test was forwarding lore-olympus to src/test.ts, but the test images are of the synthetic Aria character (legacy data/canon.json 'Echoes of Aria'). Decoupled --test from the built series — it now always runs against the Aria fixture so the test passes. Also dropped the hardcoded 'Gemini 2.5 Flash' from build-canon and test.ts headers (model is dynamic across the fallback list). Segment 3 is now recordable as a clean build → test loop.",
-    "4.13": "x402 wire-format fix for OKX.AI re-review (rejected with 'x402 standard validation' on first submit). Three issues in the 402 challenge emitted by @okxweb3/x402-express: (a) resource.url was http:// behind the Railway proxy — added `app.set('trust proxy', true)` so X-Forwarded-Proto sets req.protocol; (b) paymentMiddleware writes the PaymentRequired JSON only to the `payment-required` header, leaving the body as `{}` — added with402Body() interceptor that decodes the header and emits the PaymentRequired as the body on 402; (c) resource.mimeType was empty — set `mimeType: 'application/json'` on both route configs. Live-verified on mnemo-production-c4f1.up.railway.app: GET/POST /mcp both return 402 with `https://` resource.url, `application/json` mimeType, and the full PaymentRequired JSON in the body. Test A (unpaid → 402) still passes. Commit d7902f8 pushed to master, Railway auto-deployed. Ready to resubmit to OKX.AI.",
-    "4.14": "Paid-path fix for OKX.AI second-round feedback (replayStatus=0, 'error sending request for url' on paid POST replay). Root cause: stubFacilitatorClient.verify() and settle() threw instead of returning proper response objects, and the middleware chain had no safety net for facilitator errors. Three fixes: (1) stub now returns {isValid:false,invalidReason:'stub_mode'} / {success:false,errorReason:'stub_mode'} so the SDK emits a proper 402 with error details; (2) with402Body() .catch()es any middleware error and returns a clean 402 with {x402Version:2,error,errorReason} — without this, a facilitator error caused the connection to die with no response; (3) with402Body() races the middleware against a 25s timeout so a slow web3.okx.com API returns a 402 instead of a transport-level hang. End-to-end verified with probe-paid-replay.ts against Railway: unpaid → 402, signed EIP-3009 payment → 200 with full MCP tools/list result (real OKXFacilitatorClient works from Railway). Commit 0f29ef5 pushed to master, Railway auto-deployed. replaySuccess=true. Ready to resubmit to OKX.AI.",
-    "4.15": "MCP handler 500→JSON fix for OKX.AI third-round feedback (x402 payment settled tx 0x37f051d3, but /mcp returned HTML 500 page instead of JSON-RPC output). Three fixes: (1) Global Express error handler for /mcp that returns proper JSON-RPC errors (code -32603 / -32029) instead of HTML 500 pages; (2) check-continuity tool handler wrapped in try/catch — Gemini quota errors, JSON parse errors, and any other exception now return {isError:true, content:[...]} as a proper JSON-RPC error result; (3) Empty/invalid body guard in the POST /mcp route handler — returns JSON-RPC parse error (code -32700) with status 400 if req.body is missing or not JSON-RPC 2.0. New probe scripts/probe-tools-call.ts exercises the full paid tools/call path with a real Aria test image. End-to-end verified on Railway: unpaid tools/call → 402, signed payment → 200 with JSON-RPC result containing the Aria eye_color flag (severity: high, canon: blue, page: green with red pupils). Content-Type: application/json, no HTML. Commit e6ebfdf pushed to master, Railway auto-deployed. All three OKX rounds closed."
+    "4.16": "Full backend + frontend + listing crackdown review. 4 criticals flagged (path traversal in /demo/alert-log, tool-name mismatch in 2 doc files, 2 runtime artifacts committed, zod used as transitive dep); 6 HIGH-priority items + 5 MEDIUM polish items; 3 rounds of OKX feedback all closed.",
+    "4.17": "4 criticals shipped: (a) /demo/alert-log now whitelists series_id with /^[a-z0-9_-]+$/; (b) tool name fixed to hyphen in docs/okx-listing.md:88 and scripts/record-loops.md:143; (c) .tmp-payment-required.b64 + express-log.txt removed from git tracking and added to .gitignore (+ *.b64 blanket); (d) zod 4.4.3 promoted to direct dep. Build + canary re-verified.",
+    "4.18": "Full README rewrite — OKX.AI Agent 6211 pitch up top, for-AI-agents block, full /mcp x402 flow (402 challenge + paid retry), check-continuity tool spec, project structure, frontend section, testing section, OKX.AI listing + re-push runbook + 4 gotchas, tech stack.",
+    "4.19": "Cross-checked project against 3 OKX docs (payments/app, payments/sdk-overview, okxai/howtomcp). Saved to docs/okx-compliance-check.md. Verdict: in line on every technical point that matters. 3 cosmetic drifts (token address casing, tokenAddress field name, header case) don't break anything. 2 verify items (PAYMENT-RESPONSE header on 200, doc-recommended curl -i self-check).",
+    "4.20": "check-balances.ts decimals bug fixed: was formatUnits(value, 18) for USDT, corrected to formatUnits(value, 6) at lines 33 and 45. USD₮0 on X Layer is 6 decimals, not 18. Bug had been masking the agentic wallet balance as 'dust' when it was actually $2.3.",
+    "4.21": "Test payer wallet funded via onchainos wallet send (logged in as emma080355@gmail.com). Sent 0.5 USD₮0 from agentic wallet (0x4dbfa1e…47c99) to test wallet (0x8783545…2613). Tx 0x79f8cac93286821a9257562d5219aff7a5ccedd3e3cc5ced3ab22e2f4d064c69. Agentic went 2.3 → 1.8, test went 0 → 0.5. Gas sponsored by OKX paymaster — no OKB needed.",
+    "4.22": "probe-tools-call.ts re-verified end-to-end with real funds. Unpaid → 402 ✅, sign ✅, paid → 200 + JSON-RPC result with Aria eye-color flag (high severity, blue → green-with-red-irises). Full 200 path confirmed live. Test wallet has ~0.4 USDT left = 4 more x402 calls.",
+    "4.23": "HIGH-priority cleanup batch: (a) AGENTS.md got a 'Re-pushing the OKX.AI listing' runbook section with the 4 gotchas + a 'Probes (re-verify before any resubmit)' section; (b) package.json gained probe:paid, probe:replay, listing:assets scripts; (c) frontend got sharp dep so next build is clean; (d) globals.css got :focus-visible keyboard focus rings (white 2px outline, 3px offset) that work even under .cursor-custom's cursor: none."
   },
   "key_urls": {
     "demo_site": "http://localhost:3001",
     "express_api": "http://localhost:3000",
+    "live_endpoint": "https://mnemo-production-c4f1.up.railway.app/mcp",
     "health": "http://localhost:3000/health",
     "alert_log": "http://localhost:3000/demo/alert-log?series_id=lore-olympus",
-    "checker_api": "POST http://localhost:3000/check (multipart: page_image + series_id=lore-olympus)"
+    "checker_api": "POST http://localhost:3000/check (multipart: page_image + series_id=lore-olympus)",
+    "okx_listing": "https://www.okx.ai/agents/6211",
+    "compliance_report": "docs/okx-compliance-check.md",
+    "listing_doc": "docs/okx-listing.md"
+  },
+  "wallets": {
+    "agentic_payTo": "0x4dbfa1e240f921a72a4b47fa534269ce20a47c99",
+    "test_payer": "0x8783545Fa67f35C5EB52F14468ae54411c272613",
+    "test_payer_balance_after_4.22": "~0.4 USDT (enough for ~4 more x402 calls)",
+    "funding_tx": "0x79f8cac93286821a9257562d5219aff7a5ccedd3e3cc5ced3ab22e2f4d064c69"
   },
   "running_the_demo": {
     "terminal_1": "cd mnemo && npm run dev",
-    "terminal_2": "cd mnemo/demo-site && npm run dev",
+    "terminal_2": "cd mnemo/frontend && npm run dev",
     "browser": "http://localhost:3001"
   },
+  "probes": {
+    "canary": "npm run probe:paid   # full paid tools/call path on Railway — THE canary",
+    "replay": "npm run probe:replay # 402 → sign → 200 replay, no Gemini call",
+    "balance": "npx tsx scripts/check-balances.ts"
+  },
   "next_steps_for_user": [
-    "Resubmit Mnemo to OKX.AI review via chat — all three rounds fixed and verified end-to-end: free 402 (d7902f8), paid replay (0f29ef5), tools/call JSON output (e6ebfdf)",
-    "Re-run `npx tsx scripts/probe-tools-call.ts` any time to re-verify the full paid tools/call path before resubmitting",
-    "Record demo video following scripts/demo-script.md",
-    "Deploy demo site to Vercel (free)",
-    "Submit to OKX.AI Hackathon"
+    "Wait for the existing OKX.AI 'Listing under review' cycle to clear (~24h from the last push) — no re-push needed for any of today's fixes; they're all repo-side",
+    "Record video segment 3 ('Tell your agent') — NOT blocked by listing status, just needs an x402-capable agent + a funded wallet; the HowToUse prompt + Copy button are already in the demo site, drop the .mp4 at frontend/public/videos/agent.mp4 to flip the card from [ RECORDING ] mock to real",
+    "Vercel deploy of frontend (free, zero-config: `cd frontend && vercel`) — post-listing, can be done same day as the listing goes live",
+    "Optional polish: remove unused ts-node from devDeps, add engines field to package.json, delete orphaned sample-page.jpg (242KB), compress check_poster.png (216KB)"
   ]
 }

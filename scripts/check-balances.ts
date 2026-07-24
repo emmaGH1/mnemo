@@ -30,7 +30,7 @@ async function main() {
     functionName: "balanceOf",
     args: [agenticWallet],
   });
-  console.log("USDT:", formatUnits(usdt1 as bigint, 18));
+  console.log("USDT:", formatUnits(usdt1 as bigint, 6));
 
   console.log("\n=== Test Payer Wallet ===");
   console.log("Address:", payerAccount.address);
@@ -42,7 +42,7 @@ async function main() {
     functionName: "balanceOf",
     args: [payerAccount.address],
   });
-  console.log("USDT:", formatUnits(usdt2 as bigint, 18));
+  console.log("USDT:", formatUnits(usdt2 as bigint, 6));
 }
 
 main().catch((e) => { console.error(e); process.exit(1); });
