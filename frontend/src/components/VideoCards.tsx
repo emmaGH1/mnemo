@@ -22,7 +22,7 @@ const videos = [
     description:
       "Run a single page through the checker. Continuity breaks are flagged inline with the panel they came from.",
     videoSrc: "/videos/check.mp4",
-    posterSrc: "/videos/check_poster.png",
+    posterSrc: "/videos/check_poster.jpg",
     duration: "0:38",
     ready: true,
     align: "right" as const,
@@ -35,7 +35,7 @@ const videos = [
     description:
       "Paste the prompt. Your agent pays 0.1 USDT via x402, calls Agent 6211, and ships you a flag list. No account, no API key.",
     videoSrc: "/videos/agent.mp4",
-    posterSrc: "/videos/agent_poster.png",
+    posterSrc: "/videos/agent_poster.jpg",
     duration: "0:48",
     ready: true,
     align: "left" as const,
