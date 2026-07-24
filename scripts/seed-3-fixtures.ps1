@@ -44,6 +44,10 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$BaseImage,
 
+    # If set, output directly to this series pages folder with ep003_p<N> naming.
+    # The watch CLI expects files named ep003_p<N>.png in the series pages folder.
+    [string]$SeriesPagesDir = "",
+
     [string]$OutputDir = "test-images"
 )
 
@@ -119,6 +123,23 @@ function New-SeededFixture {
     Write-Host "  [ok] $destPath"
 }
 
+function Publish-ToSeries {
+    param(
+        [string]$Dest,
+        [string]$PageName
+    )
+
+    if ([string]::IsNullOrEmpty($script:SeriesPagesDir)) { return }
+    if (-not (Test-Path $script:SeriesPagesDir)) {
+        New-Item -ItemType Directory -Path $script:SeriesPagesDir -Force | Out-Null
+    }
+    $srcPath  = Join-Path $OutputDir $Dest
+    $destName = "ep003_$PageName.png"
+    $destPath = Join-Path $script:SeriesPagesDir $destName
+    Copy-Item $srcPath $destPath -Force
+    Write-Host "  [published] $destPath  (watch CLI: --pages $PageName)"
+}
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -126,11 +147,20 @@ function New-SeededFixture {
 Write-Host ""
 Write-Host "Generating 3 seeded fixtures from: $BaseImage"
 Write-Host "Output dir:                       $OutputDir"
+if (-not [string]::IsNullOrEmpty($SeriesPagesDir)) {
+    Write-Host "Series pages (publish target):    $SeriesPagesDir"
+}
 Write-Host ""
 
 New-SeededFixture -Source $BaseImage -Dest "page_eyes.png"   -Region $script:EyesRegion   -Color $script:EyesColor
 New-SeededFixture -Source $BaseImage -Dest "page_hair.png"   -Region $script:HairRegion   -Color $script:HairColor
 New-SeededFixture -Source $BaseImage -Dest "page_outfit.png" -Region $script:OutfitRegion -Color $script:OutfitColor
+
+if (-not [string]::IsNullOrEmpty($SeriesPagesDir)) {
+    Publish-ToSeries -Dest "page_eyes.png"   -PageName "p11"
+    Publish-ToSeries -Dest "page_hair.png"   -PageName "p12"
+    Publish-ToSeries -Dest "page_outfit.png" -PageName "p13"
+}
 
 Write-Host ""
 Write-Host "Done. Next steps:"
