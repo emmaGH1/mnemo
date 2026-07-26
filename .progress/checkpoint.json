@@ -51,9 +51,8 @@
     "balance": "npx tsx scripts/check-balances.ts"
   },
   "next_steps_for_user": [
-    "Deploy this dual-mode body fix to Railway (git push / Railway redeploy). Live endpoint still has the old JSON-RPC-only guard until then.",
-    "Re-fund test payer wallet (0x8783545...2613) if depleted, then run `npm run probe:paid` and `npx tsx scripts/probe-simple-json.ts` against local; after deploy, re-run probe:paid against production.",
-    "Re-push OKX serviceDescription (docs/okx-listing.md) so the listing copy also documents JSON-RPC + simple JSON. Any update re-triggers ~24h 'Listing under review'.",
-    "Do not resubmit the listing until Railway is live with this fix and probe:paid passes."
+    "Dual-mode commits pushed to origin/master (311cf77). First Railway redeploy was still old code (402 description: 'Webtoon continuity check…'). Redeploy again from latest master.",
+    "After second redeploy: confirm 402 description includes page_image_base64 via `npx tsx scripts/probe-prod-simple.ts`, then `npm run probe:paid` (test payer ~0.5 USDT after one successful canary).",
+    "OKX serviceDescription already re-pushed (tx 0x85ad7c21…). Resubmit listing after prod canary green."
   ]
 }
