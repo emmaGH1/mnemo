@@ -51,7 +51,7 @@
     "balance": "npx tsx scripts/check-balances.ts"
   },
   "next_steps_for_user": [
-    "Production dual-mode deploy verified (2026-07-26): 402 description includes page_image_base64 + JSON-RPC example; probe:paid PASS (200 + Aria flag + PAYMENT-RESPONSE, ~6s).",
-    "Safe to resubmit OKX.AI listing #6211. serviceDescription already documents both body shapes (tx 0x85ad7c21…)."
+    "Body-hardening fix pushed (e4ae2eb): lenient JSON parse, tools/call→normalized check path, empty/list→discovery, parse errors→400 not 500. Redeploy Railway then re-run probe:paid + probe-simple-json against prod.",
+    "Listing already under review after activate; if OKX re-tests paid replay, new deploy must be live first."
   ]
 }
