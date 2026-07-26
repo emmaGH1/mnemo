@@ -17,6 +17,8 @@ body {
     linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
   background-size: 64px 64px;
+  /* continuous dark field — no hard page edges */
+  min-height: 100dvh;
 }
 
 h1,
@@ -27,6 +29,26 @@ h3 {
 
 html {
   scroll-behavior: smooth;
+}
+
+/* Immersive section rhythm — soft vertical atmosphere */
+.section-immersive {
+  position: relative;
+}
+
+.section-immersive::before {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset-x: 0;
+  top: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.1),
+    transparent
+  );
 }
 
 /* Hero — CSS-only background layers (no image asset) */
@@ -59,15 +81,20 @@ html {
   background:
     radial-gradient(
       ellipse 40% 32% at 25% 28%,
-      rgba(255, 255, 255, 0.05),
+      rgba(255, 255, 255, 0.06),
       transparent 70%
     ),
     radial-gradient(
       ellipse 36% 30% at 75% 68%,
-      rgba(255, 255, 255, 0.04),
+      rgba(255, 255, 255, 0.05),
+      transparent 70%
+    ),
+    radial-gradient(
+      ellipse 28% 24% at 50% 70%,
+      rgba(255, 255, 255, 0.03),
       transparent 70%
     );
-  animation: mesh-drift 26s ease-in-out infinite;
+  animation: mesh-drift 22s ease-in-out infinite;
   will-change: transform;
 }
 
@@ -76,9 +103,25 @@ html {
   100% {
     transform: translate(0, 0) scale(1);
   }
-  50% {
-    transform: translate(3%, -2%) scale(1.08);
+  33% {
+    transform: translate(2.5%, -3%) scale(1.06);
   }
+  66% {
+    transform: translate(-2%, 2%) scale(1.04);
+  }
+}
+
+/* Fine film grain — fixed, non-scrolling (performance-safe) */
+.site-grain {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  opacity: 0.035;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 180px 180px;
 }
 
 @media (prefers-reduced-motion: reduce) {

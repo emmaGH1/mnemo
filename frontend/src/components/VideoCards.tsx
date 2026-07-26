@@ -1,10 +1,28 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { motion } from "framer-motion";
 import Reveal from "./ui/Reveal";
 
-// Swap-in path: drop .mp4 (+ poster.jpg) into frontend/public/videos/, flip ready to true.
-const videos = [
+type VideoEntry = {
+  id: string;
+  label: string;
+  bar: string;
+  videoSrc: string;
+  posterSrc: string;
+  duration: string;
+  ready: boolean;
+  title?: string;
+  description?: string;
+  align?: "left" | "right";
+  /** Intrinsic pixel size of the source file — card matches this aspect exactly. */
+  width: number;
+  height: number;
+  /** Desktop-only max width (e.g. "70%"). Mobile always full width like segment 1. */
+  maxWidthMd?: string;
+};
+
+const videos: VideoEntry[] = [
   {
     id: "01",
     label: "Watch the agent",
@@ -13,6 +31,8 @@ const videos = [
     posterSrc: "/videos/watch_poster.png",
     duration: "0:42",
     ready: true,
+    width: 1920,
+    height: 1080,
   },
   {
     id: "02",
@@ -25,7 +45,10 @@ const videos = [
     posterSrc: "/videos/check_poster.jpg",
     duration: "0:38",
     ready: true,
-    align: "right" as const,
+    align: "right",
+    width: 960,
+    height: 720,
+    maxWidthMd: "70%",
   },
   {
     id: "03",
@@ -38,7 +61,10 @@ const videos = [
     posterSrc: "/videos/agent_poster.jpg",
     duration: "0:48",
     ready: true,
-    align: "left" as const,
+    align: "left",
+    width: 1280,
+    height: 720,
+    maxWidthMd: "70%",
   },
 ];
 
@@ -106,39 +132,66 @@ function MockContent({ id }: { id: string }) {
         <span className="text-white/30">you</span> › use Agent 6211 to check
         ep003_p30.jpg
       </p>
-      <p className="mt-2 text-white/70">
-        ⟶ routing to okx.ai/agents/6211
-      </p>
-      <p className="text-white/70">
-        ⟶ x402 settle: 0.1 USDT ✓
-      </p>
-      <p className="mt-2 text-white/85">
-        2 flags · eye_color · hair_color
-      </p>
+      <p className="mt-2 text-white/70">⟶ routing to okx.ai/agents/6211</p>
+      <p className="text-white/70">⟶ x402 settle: 0.1 USDT ✓</p>
+      <p className="mt-2 text-white/85">2 flags · eye_color · hair_color</p>
     </div>
   );
 }
 
-function VideoPanel({
-  v,
-  className = "",
-}: {
-  v: (typeof videos)[number];
-  className?: string;
-}) {
+function VideoPanel({ v }: { v: VideoEntry }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [dims, setDims] = useState({ w: v.width, h: v.height });
+
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el) return;
+    const apply = () => {
+      if (el.videoWidth > 0 && el.videoHeight > 0) {
+        setDims({ w: el.videoWidth, h: el.videoHeight });
+      }
+    };
+    el.addEventListener("loadedmetadata", apply);
+    apply();
+    return () => el.removeEventListener("loadedmetadata", apply);
+  }, [v.videoSrc]);
+
+  // Full width on mobile (like segment 1). Narrow + align only from md up.
+  const alignClass =
+    v.align === "right"
+      ? "md:ml-auto"
+      : v.align === "left"
+        ? "md:mr-auto"
+        : "";
+  // Tailwind needs static class strings; map known max widths explicitly.
+  const maxWClass =
+    v.maxWidthMd === "70%"
+      ? "md:max-w-[70%]"
+      : v.maxWidthMd === "85%"
+        ? "md:max-w-[85%]"
+        : "";
+
   return (
-    <div
-      className={`relative aspect-video overflow-hidden rounded-2xl border border-white/10 bg-black transition-colors duration-150 hover:border-white/15 ${className}`}
+    <motion.div
+      className={`relative w-full overflow-hidden rounded-xl border border-white/10 bg-black shadow-[0_0_0_1px_rgba(255,255,255,0.04)] transition-colors duration-300 hover:border-white/20 sm:rounded-2xl ${alignClass} ${maxWClass} ${
+        v.title ? "mt-6 sm:mt-8" : ""
+      }`}
+      style={{ aspectRatio: `${dims.w} / ${dims.h}` }}
+      whileHover={{ y: -2 }}
+      transition={{ type: "spring", stiffness: 320, damping: 28 }}
     >
       {v.ready ? (
         <video
+          ref={videoRef}
           src={v.videoSrc}
           poster={v.posterSrc}
+          width={dims.w}
+          height={dims.h}
           muted
           autoPlay
           loop
           playsInline
-          className="h-full w-full object-cover"
+          className="block h-full w-full object-contain"
         />
       ) : (
         <>
@@ -155,14 +208,13 @@ function VideoPanel({
           <MockContent id={v.id} />
         </>
       )}
-    </div>
+    </motion.div>
   );
 }
 
 export default function VideoCards() {
   const ref = useRef<HTMLDivElement>(null);
 
-  // Play videos at ≥40% visibility, pause below. No-op until real videos exist.
   useEffect(() => {
     const vids = ref.current?.querySelectorAll("video") ?? [];
     if (!vids.length) return;
@@ -180,8 +232,15 @@ export default function VideoCards() {
   }, []);
 
   return (
-    <section id="watch" className="scroll-mt-20 px-5 pb-20 pt-12 md:px-6">
-      <div ref={ref} className="mx-auto flex max-w-[1100px] flex-col gap-24">
+    <section
+      id="watch"
+      className="section-immersive relative scroll-mt-20 px-4 pb-24 pt-16 sm:px-5 md:px-6 md:pb-32 md:pt-20"
+    >
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_40%_at_50%_0%,rgba(255,255,255,0.04),transparent_60%)]"
+      />
+      <div ref={ref} className="relative mx-auto flex max-w-[1100px] flex-col gap-16 sm:gap-20 md:gap-24">
         <Reveal className="text-center md:text-left">
           <p className="font-mono-statement text-[13px] uppercase tracking-wider text-white/50">
             In action
@@ -189,13 +248,13 @@ export default function VideoCards() {
           <h2 className="mt-4 font-display text-4xl font-extrabold tracking-tight text-white md:text-5xl">
             See the agent work.
           </h2>
-          <p className="mt-5 max-w-xl text-lg leading-relaxed text-white/55 md:text-xl">
+          <p className="mx-auto mt-5 max-w-xl text-lg leading-relaxed text-white/55 md:mx-0 md:text-xl">
             Real terminal sessions, real continuity reports, real canon
             builds.
           </p>
         </Reveal>
-        {videos.map((v) => (
-          <Reveal key={v.id}>
+        {videos.map((v, i) => (
+          <Reveal key={v.id} delay={i * 0.06}>
             {v.title ? (
               <div className="text-center md:text-left">
                 <p className="font-mono-statement text-[13px] uppercase tracking-wider text-white/50">
@@ -204,23 +263,12 @@ export default function VideoCards() {
                 <h3 className="mt-3 font-display text-2xl font-bold tracking-tight text-white md:text-3xl">
                   {v.title}
                 </h3>
-                <p className="mx-auto mt-3 max-w-md text-lg leading-relaxed text-white/50 md:mx-0">
+                <p className="mx-auto mt-3 max-w-md text-base leading-relaxed text-white/50 sm:text-lg md:mx-0">
                   {v.description}
                 </p>
               </div>
             ) : null}
-            <VideoPanel
-              v={v}
-              className={
-                v.title
-                  ? `mt-8 ${
-                      v.align === "right"
-                        ? "md:ml-auto md:max-w-[70%]"
-                        : "md:mr-auto md:max-w-[70%]"
-                    }`
-                  : ""
-              }
-            />
+            <VideoPanel v={v} />
           </Reveal>
         ))}
       </div>

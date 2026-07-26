@@ -45,6 +45,7 @@ export default function RootLayout({
     >
       <body className="bg-black text-white antialiased" suppressHydrationWarning>
         {children}
+        <div aria-hidden className="site-grain" />
         <Cursor />
       </body>
     </html>
