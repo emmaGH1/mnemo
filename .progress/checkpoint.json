@@ -51,8 +51,7 @@
     "balance": "npx tsx scripts/check-balances.ts"
   },
   "next_steps_for_user": [
-    "Dual-mode commits pushed to origin/master (311cf77). First Railway redeploy was still old code (402 description: 'Webtoon continuity check…'). Redeploy again from latest master.",
-    "After second redeploy: confirm 402 description includes page_image_base64 via `npx tsx scripts/probe-prod-simple.ts`, then `npm run probe:paid` (test payer ~0.5 USDT after one successful canary).",
-    "OKX serviceDescription already re-pushed (tx 0x85ad7c21…). Resubmit listing after prod canary green."
+    "Production dual-mode deploy verified (2026-07-26): 402 description includes page_image_base64 + JSON-RPC example; probe:paid PASS (200 + Aria flag + PAYMENT-RESPONSE, ~6s).",
+    "Safe to resubmit OKX.AI listing #6211. serviceDescription already documents both body shapes (tx 0x85ad7c21…)."
   ]
 }
