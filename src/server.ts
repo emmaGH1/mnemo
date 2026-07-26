@@ -194,16 +194,30 @@ function createMcpServer(): McpServer {
       try {
         let canonOverride: CanonDoc | undefined;
         if (canon) {
-          try {
-            canonOverride = JSON.parse(canon) as CanonDoc;
-            } catch (parseErr) {
-              throw new Error(JSON.stringify({ kind: "invalid_canon", detail: parseErr instanceof Error ? parseErr.message : String(parseErr) }));
-            }
+          const parsed = lenientParseJson(canon);
+          if (!parsed.ok) {
+            throw new Error(
+              JSON.stringify({ kind: "invalid_canon", detail: parsed.error })
+            );
+          }
+          if (
+            typeof parsed.value !== "object" ||
+            parsed.value === null ||
+            Array.isArray(parsed.value)
+          ) {
+            throw new Error(
+              JSON.stringify({ kind: "invalid_canon", detail: "canon must be a JSON object" })
+            );
+          }
+          canonOverride = parsed.value as CanonDoc;
         }
 
+        const img = normalizeImageBase64(page_image_base64);
+        const mime = normalizeMime(mime_type, img.mime) ?? mime_type;
+
         const result = await runCheck(
-          page_image_base64,
-          mime_type,
+          img.base64,
+          mime,
           canonOverride,
           dialogue,
           series_id,
@@ -427,7 +441,8 @@ interface SimpleCheckArgs {
   page_image_base64: string;
   mime_type: "image/png" | "image/jpeg" | "image/webp";
   series_id?: string;
-  canon?: string;
+  /** Canon as object or JSON string — normalized before runCheck. */
+  canon?: unknown;
   dialogue?: string;
   ep_number?: number;
   panel_number?: number;
@@ -435,8 +450,101 @@ interface SimpleCheckArgs {
 
 type AdaptedPostBody =
   | { mode: "jsonrpc"; body: Record<string, unknown> }
-  | { mode: "simple-check"; args: SimpleCheckArgs }
+  | {
+      mode: "simple-check";
+      args: SimpleCheckArgs;
+      /** When set, wrap ContinuityCheckResult in a JSON-RPC tools/call result. */
+      jsonrpcId?: unknown;
+      asJsonRpc?: boolean;
+    }
+  | { mode: "discovery"; id: unknown }
   | { mode: "invalid"; detail: string };
+
+/** Lenient JSON parse for marketplace bodies (single quotes, unquoted keys, empty). */
+export function lenientParseJson(
+  raw: string
+): { ok: true; value: unknown } | { ok: false; error: string; preview: string } {
+  const text = raw.replace(/^\uFEFF/, "").trim();
+  if (!text) return { ok: true, value: {} };
+
+  const preview = text.length > 160 ? `${text.slice(0, 160)}…` : text;
+
+  const attempts: string[] = [text];
+
+  // Double-encoded JSON string: "\"{...}\"" or "\"{'a':1}\""
+  if (
+    (text.startsWith('"') && text.endsWith('"')) ||
+    (text.startsWith("'") && text.endsWith("'"))
+  ) {
+    attempts.push(text.slice(1, -1));
+  }
+
+  // Single-quoted object/array → double quotes (OKX/Python-style dict strings).
+  if (
+    (text.startsWith("{") || text.startsWith("[")) &&
+    text.includes("'") &&
+    !text.includes('"')
+  ) {
+    attempts.push(text.replace(/'/g, '"'));
+  }
+
+  // Unquoted keys: {jsonrpc: "2.0", method: "tools/list"}
+  if (text.startsWith("{") && /[{,]\s*[A-Za-z_][A-Za-z0-9_]*\s*:/.test(text)) {
+    attempts.push(
+      text.replace(/([{,]\s*)([A-Za-z_][A-Za-z0-9_]*)\s*:/g, '$1"$2":')
+    );
+  }
+
+  // Trailing commas before } or ]
+  for (const base of [...attempts]) {
+    if (/,\s*[}\]]/.test(base)) {
+      attempts.push(base.replace(/,(\s*[}\]])/g, "$1"));
+    }
+  }
+
+  let lastErr = "Invalid JSON";
+  for (const candidate of attempts) {
+    try {
+      return { ok: true, value: JSON.parse(candidate) };
+    } catch (e: unknown) {
+      lastErr = e instanceof Error ? e.message : String(e);
+    }
+  }
+
+  // form-urlencoded: page_image_base64=...&mime_type=image%2Fpng
+  if (text.includes("=") && !text.trimStart().startsWith("{") && !text.trimStart().startsWith("[")) {
+    try {
+      const params = new URLSearchParams(text);
+      const obj: Record<string, string> = {};
+      for (const [k, v] of params.entries()) obj[k] = v;
+      if (Object.keys(obj).length > 0) return { ok: true, value: obj };
+    } catch {
+      /* ignore */
+    }
+  }
+
+  return { ok: false, error: lastErr, preview };
+}
+
+/** Coerce a value that may be an object or a JSON/stringified object into a plain object. */
+export function coerceObject(value: unknown): Record<string, unknown> | null {
+  if (value == null) return null;
+  if (typeof value === "object" && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  if (typeof value === "string") {
+    const parsed = lenientParseJson(value);
+    if (
+      parsed.ok &&
+      typeof parsed.value === "object" &&
+      parsed.value !== null &&
+      !Array.isArray(parsed.value)
+    ) {
+      return parsed.value as Record<string, unknown>;
+    }
+  }
+  return null;
+}
 
 function pickNonEmptyString(
   obj: Record<string, unknown>,
@@ -444,7 +552,9 @@ function pickNonEmptyString(
 ): string | undefined {
   for (const k of keys) {
     const v = obj[k];
-    if (typeof v === "string" && v.length > 0) return v;
+    if (typeof v === "string" && v.trim().length > 0) return v.trim();
+    // Some clients send numbers/booleans for ids — coerce to string.
+    if (typeof v === "number" && Number.isFinite(v)) return String(v);
   }
   return undefined;
 }
@@ -463,41 +573,136 @@ function pickOptionalNumber(
   return undefined;
 }
 
+/** Strip data-URI prefix and whitespace from base64 image payloads. */
+export function normalizeImageBase64(raw: string): {
+  base64: string;
+  mime?: "image/png" | "image/jpeg" | "image/webp";
+} {
+  let s = raw.trim().replace(/\s+/g, "");
+  const dataUri = /^data:(image\/(?:png|jpeg|jpg|webp));base64,(.+)$/i.exec(s);
+  if (dataUri) {
+    let mime = dataUri[1].toLowerCase();
+    if (mime === "image/jpg") mime = "image/jpeg";
+    return {
+      base64: dataUri[2],
+      mime: mime as "image/png" | "image/jpeg" | "image/webp",
+    };
+  }
+  // Bare prefix without data: scheme
+  const bare = /^image\/(?:png|jpeg|jpg|webp);base64,(.+)$/i.exec(s);
+  if (bare) return { base64: bare[1] };
+  return { base64: s };
+}
+
+function normalizeMime(
+  raw: string | undefined,
+  fallback?: string
+): "image/png" | "image/jpeg" | "image/webp" | null {
+  const m = (raw ?? fallback ?? "image/png").trim().toLowerCase();
+  if (m === "image/jpg") return "image/jpeg";
+  if (m === "png") return "image/png";
+  if (m === "jpeg" || m === "jpg") return "image/jpeg";
+  if (m === "webp") return "image/webp";
+  if (ALLOWED_MIME.has(m)) return m as "image/png" | "image/jpeg" | "image/webp";
+  return null;
+}
+
 /** Pull check-continuity args from a flat object; null if no image field present. */
-function extractCheckArgs(obj: Record<string, unknown>): SimpleCheckArgs | null {
-  const page_image_base64 = pickNonEmptyString(obj, [
+export function extractCheckArgs(obj: Record<string, unknown>): SimpleCheckArgs | null {
+  // Nested bags some gateways use
+  const nested =
+    coerceObject(obj.arguments) ??
+    coerceObject(obj.params) ??
+    coerceObject(obj.input) ??
+    coerceObject(obj.data) ??
+    coerceObject(obj.payload) ??
+    null;
+  const src: Record<string, unknown> = nested ? { ...nested, ...obj } : obj;
+
+  const imageRaw = pickNonEmptyString(src, [
     "page_image_base64",
     "page_image",
     "image_base64",
     "image",
+    "imageBase64",
+    "pageImageBase64",
+    "file_base64",
+    "file",
   ]);
-  if (!page_image_base64) return null;
+  if (!imageRaw) return null;
 
-  const mimeRaw =
-    pickNonEmptyString(obj, ["mime_type", "mimeType", "content_type", "contentType"]) ??
-    "image/png";
-  if (!ALLOWED_MIME.has(mimeRaw)) {
-    return null;
-  }
+  const { base64, mime: mimeFromUri } = normalizeImageBase64(imageRaw);
+  if (!base64 || base64.length < 8) return null;
+
+  const mime = normalizeMime(
+    pickNonEmptyString(src, ["mime_type", "mimeType", "content_type", "contentType", "mime"]),
+    mimeFromUri
+  );
+  if (!mime) return null;
+
+  const canonVal =
+    src.canon !== undefined && src.canon !== null
+      ? src.canon
+      : src.canon_doc !== undefined
+        ? src.canon_doc
+        : src.canonDoc;
+
+  const dialogue = pickNonEmptyString(src, ["dialogue", "dialogue_text", "script", "text"]);
 
   return {
-    page_image_base64,
-    mime_type: mimeRaw as SimpleCheckArgs["mime_type"],
-    series_id: pickNonEmptyString(obj, ["series_id", "seriesId"]),
-    canon: pickNonEmptyString(obj, ["canon"]),
-    dialogue: pickNonEmptyString(obj, ["dialogue"]),
-    ep_number: pickOptionalNumber(obj, ["ep_number", "epNumber", "episode"]),
-    panel_number: pickOptionalNumber(obj, ["panel_number", "panelNumber", "panel"]),
+    page_image_base64: base64,
+    mime_type: mime,
+    series_id: pickNonEmptyString(src, ["series_id", "seriesId", "series"]),
+    canon: canonVal,
+    dialogue,
+    ep_number: pickOptionalNumber(src, ["ep_number", "epNumber", "episode", "ep"]),
+    panel_number: pickOptionalNumber(src, ["panel_number", "panelNumber", "panel"]),
   };
+}
+
+function isCheckContinuityName(name: unknown): boolean {
+  if (typeof name !== "string") return false;
+  const n = name.trim().toLowerCase().replace(/_/g, "-");
+  return n === "check-continuity" || n === "checkcontinuity" || n === "continuity-check";
+}
+
+function isDiscoveryMethod(method: unknown): boolean {
+  if (typeof method !== "string") return false;
+  const m = method.trim().toLowerCase();
+  return (
+    m === "tools/list" ||
+    m === "initialize" ||
+    m === "ping" ||
+    m === "notifications/initialized" ||
+    m === "resources/list" ||
+    m === "prompts/list"
+  );
 }
 
 /**
  * Normalize a POST /mcp body into either JSON-RPC (for the MCP transport) or a
  * simple check-continuity invocation (plain JSON in/out for marketplace buyers).
+ * Exported for unit tests / probes.
  */
-/** Exported for unit tests / probes. */
 export function adaptMcpPostBody(body: unknown): AdaptedPostBody {
-  if (!body || typeof body !== "object" || Array.isArray(body)) {
+  // Empty / null body → paid discovery deliverable (never 500).
+  if (body == null || body === "") {
+    return { mode: "discovery", id: null };
+  }
+
+  // Body arrived as a JSON string (double-encoded or raw text after lenient parse miss).
+  if (typeof body === "string") {
+    const parsed = lenientParseJson(body);
+    if (!parsed.ok) {
+      return {
+        mode: "invalid",
+        detail: `Request body is not valid JSON (${parsed.error}). Preview: ${parsed.preview}`,
+      };
+    }
+    return adaptMcpPostBody(parsed.value);
+  }
+
+  if (typeof body !== "object" || Array.isArray(body)) {
     return {
       mode: "invalid",
       detail: "Request body must be a JSON object (JSON-RPC 2.0 or simple tool params).",
@@ -506,31 +711,96 @@ export function adaptMcpPostBody(body: unknown): AdaptedPostBody {
 
   const o = body as Record<string, unknown>;
 
-  // 1) Full MCP JSON-RPC — pass through unchanged.
-  if ("jsonrpc" in o) {
-    return { mode: "jsonrpc", body: o };
+  // Empty object → discovery (common after payment when buyer omits tool args).
+  if (Object.keys(o).length === 0) {
+    return { mode: "discovery", id: null };
   }
 
-  // 2) Named tool call without JSON-RPC envelope:
-  //    { name: "check-continuity", arguments: { ... } }
-  //    { tool: "check-continuity", params: { ... } }
+  // ── JSON-RPC envelope ────────────────────────────────────────────────────
+  if ("jsonrpc" in o || typeof o.method === "string") {
+    const method = typeof o.method === "string" ? o.method : "";
+    const id = o.id ?? null;
+
+    if (!method || isDiscoveryMethod(method)) {
+      return { mode: "discovery", id };
+    }
+
+    if (method === "tools/call" || method === "tools.call") {
+      const params =
+        coerceObject(o.params) ??
+        coerceObject(o.arguments) ??
+        // Some clients put tool fields at the top level beside method
+        o;
+      const toolName =
+        (typeof params.name === "string" && params.name) ||
+        (typeof params.tool === "string" && params.tool) ||
+        (typeof o.name === "string" && o.name) ||
+        "check-continuity";
+
+      const argsObj =
+        coerceObject(params.arguments) ??
+        coerceObject(params.args) ??
+        coerceObject(params.input) ??
+        // Flat params: { name, page_image_base64, mime_type }
+        params;
+
+      if (isCheckContinuityName(toolName) || extractCheckArgs(argsObj)) {
+        const args = extractCheckArgs(argsObj);
+        if (args) {
+          // One normalization pipeline for both marketplace + MCP paid replays.
+          // Respond as JSON-RPC so MCP buyers still get a result envelope.
+          return {
+            mode: "simple-check",
+            args,
+            jsonrpcId: id,
+            asJsonRpc: true,
+          };
+        }
+        return {
+          mode: "invalid",
+          detail:
+            "tools/call check-continuity requires page_image_base64 (or page_image / image) and mime_type image/png|image/jpeg|image/webp. Nested params.arguments may be an object or JSON string.",
+        };
+      }
+
+      // Other tools → pass through MCP after ensuring arguments is an object.
+      const normalized: Record<string, unknown> = {
+        jsonrpc: "2.0",
+        id: id ?? 1,
+        method: "tools/call",
+        params: {
+          name: toolName,
+          arguments: argsObj && typeof argsObj === "object" ? argsObj : {},
+        },
+      };
+      return { mode: "jsonrpc", body: normalized };
+    }
+
+    // Other JSON-RPC methods → MCP transport
+    return {
+      mode: "jsonrpc",
+      body: {
+        jsonrpc: "2.0",
+        id: id ?? 1,
+        method,
+        params: coerceObject(o.params) ?? o.params ?? {},
+      },
+    };
+  }
+
+  // ── Named tool call without JSON-RPC ─────────────────────────────────────
   const toolName =
     (typeof o.name === "string" && o.name) ||
     (typeof o.tool === "string" && o.tool) ||
     undefined;
   const toolArgsRaw =
-    (o.arguments && typeof o.arguments === "object" && !Array.isArray(o.arguments)
-      ? (o.arguments as Record<string, unknown>)
-      : null) ??
-    (o.params && typeof o.params === "object" && !Array.isArray(o.params)
-      ? (o.params as Record<string, unknown>)
-      : null) ??
-    (o.input && typeof o.input === "object" && !Array.isArray(o.input)
-      ? (o.input as Record<string, unknown>)
-      : null);
+    coerceObject(o.arguments) ??
+    coerceObject(o.params) ??
+    coerceObject(o.input) ??
+    null;
 
   if (toolName && toolArgsRaw) {
-    if (toolName === "check-continuity" || toolName === "check_continuity") {
+    if (isCheckContinuityName(toolName)) {
       const args = extractCheckArgs(toolArgsRaw);
       if (args) return { mode: "simple-check", args };
       return {
@@ -539,7 +809,6 @@ export function adaptMcpPostBody(body: unknown): AdaptedPostBody {
           "check-continuity requires page_image_base64 (or page_image) and mime_type image/png|image/jpeg|image/webp.",
       };
     }
-    // Other tools → wrap as JSON-RPC tools/call so MCP still handles them.
     return {
       mode: "jsonrpc",
       body: {
@@ -551,54 +820,122 @@ export function adaptMcpPostBody(body: unknown): AdaptedPostBody {
     };
   }
 
-  // 3) Bare method without jsonrpc: { method: "tools/list", id?: ... }
-  if (typeof o.method === "string" && o.method.length > 0) {
-    return {
-      mode: "jsonrpc",
-      body: {
-        jsonrpc: "2.0",
-        id: o.id ?? 1,
-        method: o.method,
-        params: o.params ?? {},
-      },
-    };
-  }
-
-  // 4) Flat simple JSON tool params → check-continuity.
+  // ── Flat simple JSON ─────────────────────────────────────────────────────
   const flat = extractCheckArgs(o);
   if (flat) return { mode: "simple-check", args: flat };
 
-  // Image field present but mime invalid / incomplete.
   if (
-    pickNonEmptyString(o, ["page_image_base64", "page_image", "image_base64", "image"])
+    pickNonEmptyString(o, [
+      "page_image_base64",
+      "page_image",
+      "image_base64",
+      "image",
+      "imageBase64",
+    ])
   ) {
     return {
       mode: "invalid",
       detail:
-        "Found an image field but mime_type is missing or invalid. Use mime_type: image/png | image/jpeg | image/webp.",
+        "Found an image field but mime_type is missing or invalid. Use mime_type: image/png | image/jpeg | image/webp (or a data:image/...;base64, URI).",
     };
   }
 
   return {
     mode: "invalid",
     detail:
-      "Unrecognized body. Send JSON-RPC 2.0 (tools/call) or simple JSON with page_image_base64 + mime_type.",
+      "Unrecognized body. Send JSON-RPC 2.0 tools/call or simple JSON with page_image_base64 + mime_type. Empty body returns tool discovery.",
   };
 }
 
-/** Run check-continuity for simple-JSON buyers; respond with plain result JSON. */
+function discoveryResult() {
+  return {
+    service: "mnemo",
+    protocolVersion: "2025-03-26",
+    capabilities: { tools: {} },
+    tools: [
+      {
+        name: "check-continuity",
+        description:
+          "Check a webtoon page image against series canon for continuity errors. Returns flags + canon_additions.",
+        inputSchema: {
+          type: "object",
+          required: ["page_image_base64", "mime_type"],
+          properties: CHECK_CONTINUITY_INPUT_SCHEMA,
+        },
+      },
+      {
+        name: "register-series",
+        description: "Register a series for continuity monitoring.",
+        inputSchema: {
+          type: "object",
+          required: ["series_id"],
+          properties: {
+            series_id: { type: "string", description: "Series identifier (e.g. lore-olympus)" },
+            url: { type: "string", description: "Optional webtoon URL" },
+          },
+        },
+      },
+      {
+        name: "get-alerts",
+        description: "Retrieve continuity alerts for a registered series.",
+        inputSchema: {
+          type: "object",
+          required: ["series_id"],
+          properties: {
+            series_id: { type: "string" },
+            since_episode: { type: "number" },
+            limit: { type: "number" },
+          },
+        },
+      },
+    ],
+    request_body: BODY_SCHEMA_HINT,
+    instructions:
+      "POST /mcp after paying. Prefer JSON-RPC tools/call for MCP clients. Marketplace / simple buyers may POST flat JSON {page_image_base64, mime_type} and receive a plain ContinuityCheckResult (not a JSON-RPC envelope).",
+  };
+}
+
+function sendDiscovery(res: Response, id: unknown = null): void {
+  res.json({
+    jsonrpc: "2.0",
+    id,
+    result: discoveryResult(),
+  });
+}
+
+/** Run check-continuity for simple-JSON / normalized tools/call buyers. */
 async function handleSimpleCheck(
   args: SimpleCheckArgs,
-  res: Response
+  res: Response,
+  opts?: { jsonrpcId?: unknown; asJsonRpc?: boolean }
 ): Promise<void> {
   let canonOverride: CanonDoc | undefined;
-  if (args.canon) {
-    try {
-      canonOverride = JSON.parse(args.canon) as CanonDoc;
-    } catch (parseErr) {
+  if (args.canon !== undefined && args.canon !== null && args.canon !== "") {
+    if (typeof args.canon === "object" && !Array.isArray(args.canon)) {
+      canonOverride = args.canon as CanonDoc;
+    } else if (typeof args.canon === "string") {
+      const parsed = lenientParseJson(args.canon);
+      if (!parsed.ok) {
+        res.status(400).json({
+          error: "invalid_canon",
+          detail: parsed.error,
+          body_schema: BODY_SCHEMA_HINT,
+        });
+        return;
+      }
+      if (typeof parsed.value !== "object" || parsed.value === null || Array.isArray(parsed.value)) {
+        res.status(400).json({
+          error: "invalid_canon",
+          detail: "canon must be a JSON object (CanonDoc)",
+          body_schema: BODY_SCHEMA_HINT,
+        });
+        return;
+      }
+      canonOverride = parsed.value as CanonDoc;
+    } else {
       res.status(400).json({
         error: "invalid_canon",
-        detail: parseErr instanceof Error ? parseErr.message : String(parseErr),
+        detail: "canon must be an object or JSON string",
         body_schema: BODY_SCHEMA_HINT,
       });
       return;
@@ -614,6 +951,17 @@ async function handleSimpleCheck(
     args.ep_number,
     args.panel_number
   );
+
+  if (opts?.asJsonRpc) {
+    res.json({
+      jsonrpc: "2.0",
+      id: opts.jsonrpcId ?? 1,
+      result: {
+        content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+      },
+    });
+    return;
+  }
   res.json(result);
 }
 
@@ -628,8 +976,70 @@ const app = express();
 // embedded in the 402 challenge advertises "http://" instead of
 // "https://" — OKX.AI's x402 validator rejects mismatched schemes.
 app.set("trust proxy", true);
+
+/**
+ * POST /mcp body parser — MUST run before express.json so we can:
+ *  1. Accept empty bodies (→ discovery)
+ *  2. Lenient-parse single-quoted / unquoted-key JSON (marketplace clients)
+ *  3. Never let body-parser SyntaxError become an opaque HTTP 500
+ *
+ * Other routes still use express.json below.
+ */
+app.use((req: Request, res: Response, next) => {
+  if (!(req.method === "POST" && (req.path === "/mcp" || req.path === "/mcp/"))) {
+    return next();
+  }
+
+  const chunks: Buffer[] = [];
+  let settled = false;
+  const finish = (err?: Error) => {
+    if (settled) return;
+    settled = true;
+    if (err) return next(err);
+    const raw = Buffer.concat(chunks).toString("utf8");
+    (req as Request & { rawBody?: string }).rawBody = raw;
+
+    if (!raw || !raw.trim()) {
+      req.body = {};
+      return next();
+    }
+
+    const parsed = lenientParseJson(raw);
+    if (!parsed.ok) {
+      console.error(
+        `[/mcp POST] body parse failed: ${parsed.error} preview=${parsed.preview}`
+      );
+      // 400 (not 500) so x402 skips settlement; include schema for the buyer.
+      res.status(400).json({
+        error: "invalid_json_body",
+        message: parsed.error,
+        preview: parsed.preview,
+        body_schema: BODY_SCHEMA_HINT,
+        hint:
+          "Body must be valid JSON. Use double-quoted keys/strings. " +
+          'Example simple: {"page_image_base64":"...","mime_type":"image/png"}. ' +
+          'Example JSON-RPC: {"jsonrpc":"2.0","id":1,"method":"tools/call",' +
+          '"params":{"name":"check-continuity","arguments":{"page_image_base64":"...","mime_type":"image/png"}}}.',
+      });
+      return;
+    }
+    req.body = parsed.value;
+    next();
+  };
+
+  req.on("data", (c: Buffer) => chunks.push(c));
+  req.on("end", () => finish());
+  req.on("error", (e: Error) => finish(e));
+});
+
 // Continuity checks send base64 page images — default 100kb is too small.
-app.use(express.json({ limit: "15mb" }));
+// Skip when body was already filled by the /mcp raw parser above.
+app.use((req: Request, res: Response, next) => {
+  if (req.method === "POST" && (req.path === "/mcp" || req.path === "/mcp/")) {
+    return next();
+  }
+  return express.json({ limit: "15mb" })(req, res, next);
+});
 
 // ponytail: installed OKX core's extractPayment ignores the legacy X-PAYMENT header.
 // Alias it to the canonical PAYMENT-SIGNATURE so paid GET /mcp discovery works.
@@ -895,12 +1305,13 @@ async function startServer(): Promise<void> {
 
     try {
       // Dual-mode body: JSON-RPC 2.0 (MCP clients) OR simple JSON tool params
-      // (OKX marketplace buyers). Reject only unrecognized shapes, and always
-      // attach body_schema so the required contract is visible on the wire.
+      // (OKX marketplace buyers). Empty / tools/list / initialize → discovery
+      // deliverable. tools/call check-continuity → normalized simple-check.
+      // Never 500 on body shape issues — 400 + body_schema instead.
       const adapted = adaptMcpPostBody(req.body);
       if (adapted.mode === "invalid") {
         console.error(
-          `[/mcp POST] invalid body: ${adapted.detail} raw=${JSON.stringify(req.body).slice(0, 120)}`
+          `[/mcp POST] invalid body: ${adapted.detail} raw=${JSON.stringify(req.body).slice(0, 160)}`
         );
         res.status(400).json({
           error: "invalid_request_body",
@@ -909,9 +1320,19 @@ async function startServer(): Promise<void> {
         });
         return;
       }
+      if (adapted.mode === "discovery") {
+        console.log("[/mcp POST] discovery deliverable");
+        sendDiscovery(res, adapted.id);
+        return;
+      }
       if (adapted.mode === "simple-check") {
-        console.log("[/mcp POST] simple JSON → check-continuity");
-        await handleSimpleCheck(adapted.args, res);
+        console.log(
+          `[/mcp POST] check-continuity (asJsonRpc=${Boolean(adapted.asJsonRpc)})`
+        );
+        await handleSimpleCheck(adapted.args, res, {
+          jsonrpcId: adapted.jsonrpcId,
+          asJsonRpc: adapted.asJsonRpc,
+        });
         return;
       }
       await handleMcpHttp(req, res, adapted.body);
@@ -920,14 +1341,31 @@ async function startServer(): Promise<void> {
       const message = err instanceof Error ? err.message : String(err);
       const stack = err instanceof Error ? err.stack : undefined;
       const isQuota = /quota|429|too many requests|rate limit/i.test(message);
-      const status = isQuota ? 429 : 500;
+      const isBodyParse =
+        err instanceof SyntaxError ||
+        /JSON|Unexpected token|Expected property name/i.test(message);
+      const status = isQuota ? 429 : isBodyParse ? 400 : 500;
       console.error(`[/mcp POST error ${status}]`, message);
       if (stack) console.error(stack);
-      if (!res.headersSent) res.status(status).json({
-        jsonrpc: "2.0",
-        error: { code: isQuota ? -32029 : -32603, message: isQuota ? "quota_exceeded" : "internal_error", data: message },
-        id: null,
-      });
+      if (!res.headersSent) {
+        if (isBodyParse) {
+          res.status(400).json({
+            error: "invalid_json_body",
+            message,
+            body_schema: BODY_SCHEMA_HINT,
+          });
+        } else {
+          res.status(status).json({
+            jsonrpc: "2.0",
+            error: {
+              code: isQuota ? -32029 : -32603,
+              message: isQuota ? "quota_exceeded" : "internal_error",
+              data: message,
+            },
+            id: null,
+          });
+        }
+      }
     }
   });
 
@@ -942,55 +1380,7 @@ async function startServer(): Promise<void> {
     "/mcp",
     with402Body(x402Mw),
     (_req: Request, res: Response) => {
-      res.json({
-        jsonrpc: "2.0",
-        id: null,
-        result: {
-          service: "mnemo",
-          protocolVersion: "2025-03-26",
-          capabilities: { tools: {} },
-          tools: [
-            {
-              name: "check-continuity",
-              description:
-                "Check a webtoon page image against series canon for continuity errors. Returns flags + canon_additions.",
-              inputSchema: {
-                type: "object",
-                required: ["page_image_base64", "mime_type"],
-                properties: CHECK_CONTINUITY_INPUT_SCHEMA,
-              },
-            },
-            {
-              name: "register-series",
-              description: "Register a series for continuity monitoring.",
-              inputSchema: {
-                type: "object",
-                required: ["series_id"],
-                properties: {
-                  series_id: { type: "string", description: "Series identifier (e.g. lore-olympus)" },
-                  url: { type: "string", description: "Optional webtoon URL" },
-                },
-              },
-            },
-            {
-              name: "get-alerts",
-              description: "Retrieve continuity alerts for a registered series.",
-              inputSchema: {
-                type: "object",
-                required: ["series_id"],
-                properties: {
-                  series_id: { type: "string" },
-                  since_episode: { type: "number" },
-                  limit: { type: "number" },
-                },
-              },
-            },
-          ],
-          request_body: BODY_SCHEMA_HINT,
-          instructions:
-            "POST /mcp after paying. Prefer JSON-RPC tools/call for MCP clients. Marketplace / simple buyers may POST flat JSON {page_image_base64, mime_type} and receive a plain ContinuityCheckResult (not a JSON-RPC envelope).",
-        },
-      });
+      sendDiscovery(res, null);
     },
   );
 
@@ -1046,9 +1436,22 @@ async function startServer(): Promise<void> {
     }
     const message = err instanceof Error ? err.message : String(err);
     const isQuota = /quota|429|too many requests|rate limit/i.test(message);
-    const status = isQuota ? 429 : 500;
+    // express.json / body-parser SyntaxError → 400 with schema, never 500
+    const isBodyParse =
+      err instanceof SyntaxError ||
+      (err as { type?: string }).type === "entity.parse.failed" ||
+      /JSON|Unexpected token|Expected property name|body/i.test(message);
+    const status = isQuota ? 429 : isBodyParse ? 400 : 500;
     console.error(`[/mcp global error ${status}] ${req.method} ${req.path}:`, message);
     if (err instanceof Error && err.stack) console.error(err.stack);
+    if (isBodyParse) {
+      res.status(400).json({
+        error: "invalid_json_body",
+        message,
+        body_schema: BODY_SCHEMA_HINT,
+      });
+      return;
+    }
     res.status(status).json({
       jsonrpc: "2.0",
       error: {
