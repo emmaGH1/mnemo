@@ -71,7 +71,16 @@ All routes respond JSON. The paid entry point is `POST /mcp`.
 
 ### `POST /mcp` — x402-gated, $0.10 USDT per call
 
-The only public paid endpoint. Sends a JSON-RPC 2.0 message.
+The only public paid endpoint. Accepts **two body shapes**:
+
+| Shape | Body | Response |
+|-------|------|----------|
+| **MCP JSON-RPC 2.0** | `{ "jsonrpc":"2.0", "id":1, "method":"tools/call", "params":{ "name":"check-continuity", "arguments":{...} } }` | JSON-RPC envelope |
+| **Simple JSON** (marketplace / buyer flows) | `{ "page_image_base64":"...", "mime_type":"image/png", "series_id?":"...", "canon?":"...", "dialogue?":"..." }` | Plain `ContinuityCheckResult` JSON |
+
+`check-continuity` arguments: `page_image_base64` (required), `mime_type` (`image/png` \| `image/jpeg` \| `image/webp`, required), optional `series_id`, `canon`, `dialogue`, `ep_number`, `panel_number`.
+
+The 402 challenge's `resource.description` and paid `GET /mcp` discovery both document this contract.
 
 **Unpaid → HTTP 402** (challenge):
 
@@ -88,7 +97,7 @@ curl -X POST https://mnemo-production-c4f1.up.railway.app/mcp \
   "error": "Payment required",
   "resource": {
     "url": "https://mnemo-production-c4f1.up.railway.app/mcp",
-    "description": "Webtoon continuity check — $0.10 USDT per call (X Layer)",
+    "description": "Continuity check ($0.10 USDT, X Layer). Body: MCP JSON-RPC tools/call ... OR simple JSON {page_image_base64, mime_type, ...}",
     "mimeType": "application/json"
   },
   "accepts": [{
@@ -103,7 +112,7 @@ curl -X POST https://mnemo-production-c4f1.up.railway.app/mcp \
 }
 ```
 
-**Paid → HTTP 200** (signed EIP-3009 retry):
+**Paid → HTTP 200** (signed EIP-3009 retry) — JSON-RPC shape:
 
 ```bash
 # 1. decode the 402 challenge
@@ -122,6 +131,19 @@ curl -X POST https://mnemo-production-c4f1.up.railway.app/mcp \
         "mime_type":"image/png"
       }
     }
+  }'
+```
+
+**Paid → HTTP 200** — simple JSON shape (same payment header):
+
+```bash
+curl -X POST https://mnemo-production-c4f1.up.railway.app/mcp \
+  -H "Content-Type: application/json" \
+  -H "PAYMENT-SIGNATURE: <signed-payment-base64>" \
+  -d '{
+    "page_image_base64":"<base64 PNG/JPEG/WebP>",
+    "mime_type":"image/png",
+    "series_id":"lore-olympus"
   }'
 ```
 

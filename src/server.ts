@@ -328,6 +328,296 @@ async function handleMcpHttp(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Dual-mode POST /mcp body adapter
+//
+// OKX buyer / marketplace flows often send flat tool params as plain JSON after
+// paying, while real MCP clients send JSON-RPC 2.0. Accept both so paid replays
+// don't 400 with "Request body must be a JSON-RPC 2.0 message".
+// ─────────────────────────────────────────────────────────────────────────────
+
+const ALLOWED_MIME = new Set(["image/png", "image/jpeg", "image/webp"]);
+
+const CHECK_CONTINUITY_INPUT_SCHEMA = {
+  page_image_base64: {
+    type: "string",
+    required: true,
+    description: "Base64-encoded page image (PNG, JPEG, or WebP)",
+  },
+  mime_type: {
+    type: "string",
+    required: true,
+    enum: ["image/png", "image/jpeg", "image/webp"],
+    description: "MIME type of the image",
+  },
+  series_id: {
+    type: "string",
+    required: false,
+    description: "Load canon from data/series/<id>/canon.json",
+  },
+  canon: {
+    type: "string",
+    required: false,
+    description: "JSON string of CanonDoc (overrides series_id)",
+  },
+  dialogue: {
+    type: "string",
+    required: false,
+    description: "Optional raw dialogue / script text from the page",
+  },
+  ep_number: {
+    type: "number",
+    required: false,
+    description: "Optional episode number",
+  },
+  panel_number: {
+    type: "number",
+    required: false,
+    description: "Optional panel number",
+  },
+} as const;
+
+/** Example bodies exposed in 402 description, GET discovery, and 400 errors. */
+const BODY_SCHEMA_HINT = {
+  accepted_shapes: [
+    "jsonrpc_tools_call",
+    "simple_json_check_continuity",
+    "named_tool_call",
+  ],
+  jsonrpc_example: {
+    jsonrpc: "2.0",
+    id: 1,
+    method: "tools/call",
+    params: {
+      name: "check-continuity",
+      arguments: {
+        page_image_base64: "<base64 PNG/JPEG/WebP>",
+        mime_type: "image/png",
+      },
+    },
+  },
+  simple_json_example: {
+    page_image_base64: "<base64 PNG/JPEG/WebP>",
+    mime_type: "image/png",
+    series_id: "lore-olympus",
+  },
+  named_tool_example: {
+    name: "check-continuity",
+    arguments: {
+      page_image_base64: "<base64 PNG/JPEG/WebP>",
+      mime_type: "image/png",
+    },
+  },
+  check_continuity_input_schema: CHECK_CONTINUITY_INPUT_SCHEMA,
+  note:
+    "POST /mcp accepts MCP JSON-RPC 2.0 (tools/list, tools/call, …) OR simple JSON tool params. Simple JSON with page_image_base64 runs check-continuity and returns plain ContinuityCheckResult JSON (not a JSON-RPC envelope).",
+};
+
+/** x402 resource.description — shown to buyers in the PaymentRequired challenge. */
+const X402_POST_DESCRIPTION =
+  "Continuity check ($0.10 USDT, X Layer). Body: MCP JSON-RPC tools/call " +
+  '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"check-continuity",' +
+  '"arguments":{"page_image_base64":"<b64>","mime_type":"image/png"}}} ' +
+  "OR simple JSON {page_image_base64, mime_type, series_id?, canon?, dialogue?}. " +
+  "Returns flags + canon_additions.";
+
+const X402_GET_DESCRIPTION =
+  "Paid MCP discovery ($0.10 USDT, X Layer). Returns tool list + full request body schema for POST /mcp (JSON-RPC and simple JSON).";
+
+interface SimpleCheckArgs {
+  page_image_base64: string;
+  mime_type: "image/png" | "image/jpeg" | "image/webp";
+  series_id?: string;
+  canon?: string;
+  dialogue?: string;
+  ep_number?: number;
+  panel_number?: number;
+}
+
+type AdaptedPostBody =
+  | { mode: "jsonrpc"; body: Record<string, unknown> }
+  | { mode: "simple-check"; args: SimpleCheckArgs }
+  | { mode: "invalid"; detail: string };
+
+function pickNonEmptyString(
+  obj: Record<string, unknown>,
+  keys: string[]
+): string | undefined {
+  for (const k of keys) {
+    const v = obj[k];
+    if (typeof v === "string" && v.length > 0) return v;
+  }
+  return undefined;
+}
+
+function pickOptionalNumber(
+  obj: Record<string, unknown>,
+  keys: string[]
+): number | undefined {
+  for (const k of keys) {
+    const v = obj[k];
+    if (typeof v === "number" && Number.isFinite(v)) return v;
+    if (typeof v === "string" && v.trim() !== "" && !Number.isNaN(Number(v))) {
+      return Number(v);
+    }
+  }
+  return undefined;
+}
+
+/** Pull check-continuity args from a flat object; null if no image field present. */
+function extractCheckArgs(obj: Record<string, unknown>): SimpleCheckArgs | null {
+  const page_image_base64 = pickNonEmptyString(obj, [
+    "page_image_base64",
+    "page_image",
+    "image_base64",
+    "image",
+  ]);
+  if (!page_image_base64) return null;
+
+  const mimeRaw =
+    pickNonEmptyString(obj, ["mime_type", "mimeType", "content_type", "contentType"]) ??
+    "image/png";
+  if (!ALLOWED_MIME.has(mimeRaw)) {
+    return null;
+  }
+
+  return {
+    page_image_base64,
+    mime_type: mimeRaw as SimpleCheckArgs["mime_type"],
+    series_id: pickNonEmptyString(obj, ["series_id", "seriesId"]),
+    canon: pickNonEmptyString(obj, ["canon"]),
+    dialogue: pickNonEmptyString(obj, ["dialogue"]),
+    ep_number: pickOptionalNumber(obj, ["ep_number", "epNumber", "episode"]),
+    panel_number: pickOptionalNumber(obj, ["panel_number", "panelNumber", "panel"]),
+  };
+}
+
+/**
+ * Normalize a POST /mcp body into either JSON-RPC (for the MCP transport) or a
+ * simple check-continuity invocation (plain JSON in/out for marketplace buyers).
+ */
+/** Exported for unit tests / probes. */
+export function adaptMcpPostBody(body: unknown): AdaptedPostBody {
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return {
+      mode: "invalid",
+      detail: "Request body must be a JSON object (JSON-RPC 2.0 or simple tool params).",
+    };
+  }
+
+  const o = body as Record<string, unknown>;
+
+  // 1) Full MCP JSON-RPC — pass through unchanged.
+  if ("jsonrpc" in o) {
+    return { mode: "jsonrpc", body: o };
+  }
+
+  // 2) Named tool call without JSON-RPC envelope:
+  //    { name: "check-continuity", arguments: { ... } }
+  //    { tool: "check-continuity", params: { ... } }
+  const toolName =
+    (typeof o.name === "string" && o.name) ||
+    (typeof o.tool === "string" && o.tool) ||
+    undefined;
+  const toolArgsRaw =
+    (o.arguments && typeof o.arguments === "object" && !Array.isArray(o.arguments)
+      ? (o.arguments as Record<string, unknown>)
+      : null) ??
+    (o.params && typeof o.params === "object" && !Array.isArray(o.params)
+      ? (o.params as Record<string, unknown>)
+      : null) ??
+    (o.input && typeof o.input === "object" && !Array.isArray(o.input)
+      ? (o.input as Record<string, unknown>)
+      : null);
+
+  if (toolName && toolArgsRaw) {
+    if (toolName === "check-continuity" || toolName === "check_continuity") {
+      const args = extractCheckArgs(toolArgsRaw);
+      if (args) return { mode: "simple-check", args };
+      return {
+        mode: "invalid",
+        detail:
+          "check-continuity requires page_image_base64 (or page_image) and mime_type image/png|image/jpeg|image/webp.",
+      };
+    }
+    // Other tools → wrap as JSON-RPC tools/call so MCP still handles them.
+    return {
+      mode: "jsonrpc",
+      body: {
+        jsonrpc: "2.0",
+        id: o.id ?? 1,
+        method: "tools/call",
+        params: { name: toolName, arguments: toolArgsRaw },
+      },
+    };
+  }
+
+  // 3) Bare method without jsonrpc: { method: "tools/list", id?: ... }
+  if (typeof o.method === "string" && o.method.length > 0) {
+    return {
+      mode: "jsonrpc",
+      body: {
+        jsonrpc: "2.0",
+        id: o.id ?? 1,
+        method: o.method,
+        params: o.params ?? {},
+      },
+    };
+  }
+
+  // 4) Flat simple JSON tool params → check-continuity.
+  const flat = extractCheckArgs(o);
+  if (flat) return { mode: "simple-check", args: flat };
+
+  // Image field present but mime invalid / incomplete.
+  if (
+    pickNonEmptyString(o, ["page_image_base64", "page_image", "image_base64", "image"])
+  ) {
+    return {
+      mode: "invalid",
+      detail:
+        "Found an image field but mime_type is missing or invalid. Use mime_type: image/png | image/jpeg | image/webp.",
+    };
+  }
+
+  return {
+    mode: "invalid",
+    detail:
+      "Unrecognized body. Send JSON-RPC 2.0 (tools/call) or simple JSON with page_image_base64 + mime_type.",
+  };
+}
+
+/** Run check-continuity for simple-JSON buyers; respond with plain result JSON. */
+async function handleSimpleCheck(
+  args: SimpleCheckArgs,
+  res: Response
+): Promise<void> {
+  let canonOverride: CanonDoc | undefined;
+  if (args.canon) {
+    try {
+      canonOverride = JSON.parse(args.canon) as CanonDoc;
+    } catch (parseErr) {
+      res.status(400).json({
+        error: "invalid_canon",
+        detail: parseErr instanceof Error ? parseErr.message : String(parseErr),
+        body_schema: BODY_SCHEMA_HINT,
+      });
+      return;
+    }
+  }
+
+  const result = await runCheck(
+    args.page_image_base64,
+    args.mime_type,
+    canonOverride,
+    args.dialogue,
+    args.series_id,
+    args.ep_number,
+    args.panel_number
+  );
+  res.json(result);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Express app — middleware and routes wired here; x402 middleware is applied
 // lazily so the async facilitator resolution completes before first request.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -435,7 +725,9 @@ const x402Routes = {
       payTo: AGENTIC_WALLET_ADDRESS,
       tokenAddress: USDT_X_LAYER,
     },
-    description: "Webtoon continuity check — $0.10 USDT per call (X Layer)",
+    // Shown in PaymentRequired.resource.description — must document both body shapes
+    // so marketplace buyers that send flat JSON (not JSON-RPC) know the contract.
+    description: X402_POST_DESCRIPTION,
     mimeType: "application/json",
   },
   "GET /mcp": {
@@ -446,7 +738,7 @@ const x402Routes = {
       payTo: AGENTIC_WALLET_ADDRESS,
       tokenAddress: USDT_X_LAYER,
     },
-    description: "MCP paid discovery — $0.10 USDT per call (X Layer)",
+    description: X402_GET_DESCRIPTION,
     mimeType: "application/json",
   },
 };
@@ -602,19 +894,27 @@ async function startServer(): Promise<void> {
     async (req: Request, res: Response) => {
 
     try {
-      // Guard against empty / non-JSON-RPC bodies — return a proper
-      // JSON-RPC parse error instead of letting the MCP transport crash.
-      const body = req.body;
-      if (!body || typeof body !== "object" || !("jsonrpc" in body)) {
-        console.error(`[/mcp POST] invalid/empty body: ${JSON.stringify(body).slice(0, 100)}`);
+      // Dual-mode body: JSON-RPC 2.0 (MCP clients) OR simple JSON tool params
+      // (OKX marketplace buyers). Reject only unrecognized shapes, and always
+      // attach body_schema so the required contract is visible on the wire.
+      const adapted = adaptMcpPostBody(req.body);
+      if (adapted.mode === "invalid") {
+        console.error(
+          `[/mcp POST] invalid body: ${adapted.detail} raw=${JSON.stringify(req.body).slice(0, 120)}`
+        );
         res.status(400).json({
-          jsonrpc: "2.0",
-          error: { code: -32700, message: "Parse error", data: "Request body must be a JSON-RPC 2.0 message" },
-          id: null,
+          error: "invalid_request_body",
+          message: adapted.detail,
+          body_schema: BODY_SCHEMA_HINT,
         });
         return;
       }
-      await handleMcpHttp(req, res, body);
+      if (adapted.mode === "simple-check") {
+        console.log("[/mcp POST] simple JSON → check-continuity");
+        await handleSimpleCheck(adapted.args, res);
+        return;
+      }
+      await handleMcpHttp(req, res, adapted.body);
     // ponytail: tool errors must not charge — throw instead of returning isError so the x402 middleware sees statusCode>=400 and skips settlement.
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
@@ -650,11 +950,45 @@ async function startServer(): Promise<void> {
           protocolVersion: "2025-03-26",
           capabilities: { tools: {} },
           tools: [
-            { name: "check-continuity", description: "Check a webtoon page image against series canon for continuity errors." },
-            { name: "register-series", description: "Register a series for continuity monitoring." },
-            { name: "get-alerts", description: "Retrieve continuity alerts for a registered series." },
+            {
+              name: "check-continuity",
+              description:
+                "Check a webtoon page image against series canon for continuity errors. Returns flags + canon_additions.",
+              inputSchema: {
+                type: "object",
+                required: ["page_image_base64", "mime_type"],
+                properties: CHECK_CONTINUITY_INPUT_SCHEMA,
+              },
+            },
+            {
+              name: "register-series",
+              description: "Register a series for continuity monitoring.",
+              inputSchema: {
+                type: "object",
+                required: ["series_id"],
+                properties: {
+                  series_id: { type: "string", description: "Series identifier (e.g. lore-olympus)" },
+                  url: { type: "string", description: "Optional webtoon URL" },
+                },
+              },
+            },
+            {
+              name: "get-alerts",
+              description: "Retrieve continuity alerts for a registered series.",
+              inputSchema: {
+                type: "object",
+                required: ["series_id"],
+                properties: {
+                  series_id: { type: "string" },
+                  since_episode: { type: "number" },
+                  limit: { type: "number" },
+                },
+              },
+            },
           ],
-          instructions: "Send JSON-RPC tools/list or tools/call requests with POST /mcp.",
+          request_body: BODY_SCHEMA_HINT,
+          instructions:
+            "POST /mcp after paying. Prefer JSON-RPC tools/call for MCP clients. Marketplace / simple buyers may POST flat JSON {page_image_base64, mime_type} and receive a plain ContinuityCheckResult (not a JSON-RPC envelope).",
         },
       });
     },

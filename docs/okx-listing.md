@@ -30,7 +30,7 @@ Regenerate any time with `node scripts/listing-assets.js`.
 | **Type** | A2MCP |
 | **Fee** | `0.1` USDT |
 | **Endpoint** | `https://mnemo-production-c4f1.up.railway.app/mcp` |
-| **Description** (≤500 chars) | `Drop a page image; get a JSON of every continuity flag vs your series canon. Per-character inconsistencies (severity, field, episode + panel refs, explanation) plus proposed canon additions. Inputs: page image (base64), MIME type, optional canon JSON, optional dialogue. 0.1 USDT per check via x402.` |
+| **Description** (≤500 chars) | `Drop a page image; get continuity flags vs series canon. POST body (either): (1) MCP JSON-RPC tools/call name=check-continuity args={page_image_base64,mime_type} OR (2) simple JSON {page_image_base64,mime_type,series_id?,canon?,dialogue?}. Returns flags + canon_additions. 0.1 USDT via x402 on X Layer.` |
 
 ---
 
@@ -55,7 +55,7 @@ onchainos agent update --agent-id 6211 --service '[
     "operation": "update",
     "id": "34794",
     "serviceName": "Continuity Check",
-    "serviceDescription": "Drop a page image; get a JSON of every continuity flag vs your series canon. Per-character inconsistencies (severity, field, episode + panel refs, explanation) plus proposed canon additions. Inputs: page image (base64), MIME type, optional canon JSON, optional dialogue. 0.1 USDT per check via x402.",
+    "serviceDescription": "Drop a page image; get continuity flags vs series canon. POST body (either): (1) MCP JSON-RPC tools/call name=check-continuity args={page_image_base64,mime_type} OR (2) simple JSON {page_image_base64,mime_type,series_id?,canon?,dialogue?}. Returns flags + canon_additions. 0.1 USDT via x402 on X Layer.",
     "serviceType": "A2MCP",
     "fee": "0.1",
     "endpoint": "https://mnemo-production-c4f1.up.railway.app/mcp"
