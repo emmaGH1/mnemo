@@ -4,8 +4,9 @@ const nextConfig = {
   outputFileTracingRoot: process.cwd(),
   typescript: { ignoreBuildErrors: false },
   async rewrites() {
+    const backendUrl = process.env.BACKEND_URL || "http://localhost:3000";
     return [
-      { source: "/api/:path*", destination: "http://localhost:3000/:path*" },
+      { source: "/api/:path*", destination: `${backendUrl}/:path*` },
     ];
   },
 };
