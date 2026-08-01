@@ -66,10 +66,96 @@ function httpRequest(
 
 // ─── Test A — 402 gate ────────────────────────────────────────────────────────
 
-async function testA_402Gate(port: number): Promise<void> {
-  const label = "POST /mcp with no payment header returns HTTP 402";
-
+/** tools/list must be free (OKX.AI: charge only at tools/call). */
+async function testA0_ToolsListFree(port: number): Promise<void> {
+  const label = "POST /mcp tools/list (no payment) returns 200, not 402";
   const body = JSON.stringify({ jsonrpc: "2.0", method: "tools/list", id: 1 });
+  const res = await httpRequest(
+    {
+      hostname: "127.0.0.1",
+      port,
+      path: "/mcp",
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Content-Length": Buffer.byteLength(body),
+      },
+    },
+    body
+  );
+  if (res.statusCode === 200) {
+    pass(label);
+  } else {
+    fail(label, `Expected 200 free discovery, got ${res.statusCode}. Body: ${res.body.slice(0, 200)}`);
+  }
+}
+
+/** initialize must be free. */
+async function testA0b_InitializeFree(port: number): Promise<void> {
+  const label = "POST /mcp initialize (no payment) returns 200, not 402";
+  const body = JSON.stringify({
+    jsonrpc: "2.0",
+    method: "initialize",
+    id: 0,
+    params: {
+      protocolVersion: "2025-03-26",
+      capabilities: {},
+      clientInfo: { name: "test", version: "1.0.0" },
+    },
+  });
+  const res = await httpRequest(
+    {
+      hostname: "127.0.0.1",
+      port,
+      path: "/mcp",
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Content-Length": Buffer.byteLength(body),
+      },
+    },
+    body
+  );
+  if (res.statusCode === 200) {
+    pass(label);
+  } else if (res.statusCode === 402) {
+    fail(label, `Got 402 — x402 must NOT gate initialize. Body: ${res.body.slice(0, 200)}`);
+  } else {
+    // MCP transport may return 200 with JSON-RPC error or discovery-shaped body
+    fail(label, `Expected 200, got ${res.statusCode}. Body: ${res.body.slice(0, 200)}`);
+  }
+}
+
+/** GET /mcp discovery must be free. */
+async function testA0c_GetDiscoveryFree(port: number): Promise<void> {
+  const label = "GET /mcp (no payment) returns 200, not 402";
+  const res = await httpRequest({
+    hostname: "127.0.0.1",
+    port,
+    path: "/mcp",
+    method: "GET",
+    headers: { Accept: "application/json" },
+  });
+  if (res.statusCode === 200) {
+    pass(label);
+  } else {
+    fail(label, `Expected 200 free discovery, got ${res.statusCode}. Body: ${res.body.slice(0, 200)}`);
+  }
+}
+
+async function testA_402Gate(port: number): Promise<void> {
+  const label = "POST /mcp tools/call with no payment header returns HTTP 402";
+
+  // Charge only on tools/call — use a minimal paid body (not tools/list).
+  const body = JSON.stringify({
+    jsonrpc: "2.0",
+    method: "tools/call",
+    id: 1,
+    params: {
+      name: "check-continuity",
+      arguments: { page_image_base64: "aGVsbG8=", mime_type: "image/png" },
+    },
+  });
 
   const res = await httpRequest(
     {
@@ -146,20 +232,11 @@ async function testA2_SimpleJson402(port: number): Promise<void> {
   }
 }
 
-/** Unrecognized body returns 400 with body_schema (not a bare JSON-RPC parse error). */
+/** Unrecognized body is free of x402 and returns 400 with body_schema. */
 async function testA3_InvalidBodySchema(port: number): Promise<void> {
-  const label = "POST /mcp invalid body returns 400 with body_schema hint";
+  const label = "POST /mcp invalid body returns 400 with body_schema hint (no 402)";
 
-  // Must send a payment header path that gets past... no — unpaid invalid body still
-  // hits x402 first (402), so this test needs a body that is empty/invalid AFTER payment
-  // would have been checked. Without payment, x402 always 402s before the handler.
-  // Instead: hit with no payment and confirm we still get 402 for garbage body (gate first).
-  // Schema exposure on 400 is covered when the body is invalid after the gate would run
-  // in unit terms by reusing a stub path: call with payment absent on a garbage body → 402.
-  // For true 400+schema we temporarily use a second request that x402 cannot gate?
-  // Actually x402 gates ALL posts. Invalid body after paid is hard without a real signature.
-  // So: document that unpaid invalid still 402s; schema is in 402 description + GET result.
-  // Soft check: empty object unpaid → 402 (middleware before adapter).
+  // Invalid bodies are not tools/call → no payment gate → 400 + schema.
   const body = JSON.stringify({ foo: "bar" });
   const res = await httpRequest(
     {
@@ -175,9 +252,7 @@ async function testA3_InvalidBodySchema(port: number): Promise<void> {
     body
   );
 
-  if (res.statusCode === 402) {
-    pass(label.replace("400 with body_schema hint", "unpaid garbage body still gated (402)"));
-  } else if (res.statusCode === 400) {
+  if (res.statusCode === 400) {
     try {
       const parsed = JSON.parse(res.body) as { body_schema?: unknown };
       if (parsed.body_schema) {
@@ -188,8 +263,10 @@ async function testA3_InvalidBodySchema(port: number): Promise<void> {
     } catch {
       fail(label, `400 non-JSON: ${res.body.slice(0, 200)}`);
     }
+  } else if (res.statusCode === 402) {
+    fail(label, `Got 402 — invalid body must not hit x402. Body: ${res.body.slice(0, 200)}`);
   } else {
-    fail(label, `Expected 402 or 400, got ${res.statusCode}. Body: ${res.body.slice(0, 200)}`);
+    fail(label, `Expected 400, got ${res.statusCode}. Body: ${res.body.slice(0, 200)}`);
   }
 }
 
@@ -255,8 +332,17 @@ async function testC_PaidPath(port: number): Promise<void> {
     return;
   }
 
-  // ── Step 1: send unpaid request, capture real PAYMENT-REQUIRED header ────────
-  const mcpBody = JSON.stringify({ jsonrpc: "2.0", method: "tools/list", id: 2 });
+  // ── Step 1: send unpaid tools/call, capture real PAYMENT-REQUIRED header ─────
+  // (tools/list is free — must use tools/call to exercise the payment gate)
+  const mcpBody = JSON.stringify({
+    jsonrpc: "2.0",
+    method: "tools/call",
+    id: 2,
+    params: {
+      name: "check-continuity",
+      arguments: { page_image_base64: "aGVsbG8=", mime_type: "image/png" },
+    },
+  });
 
   const unpaidRes = await httpRequest(
     {
@@ -427,6 +513,9 @@ async function main(): Promise<void> {
 
   try {
     console.log("── Test A: Payment Gate ─────────────────────────────────");
+    await testA0_ToolsListFree(port);
+    await testA0b_InitializeFree(port);
+    await testA0c_GetDiscoveryFree(port);
     await testA_402Gate(port);
     await testA2_SimpleJson402(port);
     await testA3_InvalidBodySchema(port);

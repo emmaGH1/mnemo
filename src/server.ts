@@ -4,9 +4,12 @@
 // Route table:
 //   GET  /health  — liveness probe (no payment gate)
 //   POST /check   — convenience REST, ungated (local dev / direct HTTP clients)
-//   POST /mcp     — x402 payment gate ($0.10 USDT, eip155:196) → MCP tool
-//   GET  /mcp     — MCP SSE / GET endpoint (some MCP clients require this)
-//   DELETE /mcp   — MCP session teardown
+//   POST /mcp     — MCP JSON-RPC; x402 ($0.10 USDT) ONLY on tools/call (and simple-JSON tool body)
+//   GET  /mcp     — free discovery (tools list + body schema; no payment)
+//   DELETE /mcp   — MCP session teardown (no payment)
+//
+// OKX.AI rule: charge only at tools/call. initialize / tools/list / GET discovery
+// must never hit the x402 middleware (no 402, no facilitator verify/settle).
 //
 // Payment shape (confirmed from @okxweb3/x402-express v0.1.1 .d.ts):
 //   paymentMiddleware(routes: RoutesConfig, server: x402ResourceServer, ...)
@@ -428,14 +431,12 @@ const BODY_SCHEMA_HINT = {
 
 /** x402 resource.description — shown to buyers in the PaymentRequired challenge. */
 const X402_POST_DESCRIPTION =
-  "Continuity check ($0.10 USDT, X Layer). Body: MCP JSON-RPC tools/call " +
+  "Continuity check ($0.10 USDT, X Layer) — charged only on tools/call (or simple JSON tool body). " +
+  "initialize and tools/list are free. Body: MCP JSON-RPC tools/call " +
   '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"check-continuity",' +
   '"arguments":{"page_image_base64":"<b64>","mime_type":"image/png"}}} ' +
   "OR simple JSON {page_image_base64, mime_type, series_id?, canon?, dialogue?}. " +
   "Returns flags + canon_additions.";
-
-const X402_GET_DESCRIPTION =
-  "Paid MCP discovery ($0.10 USDT, X Layer). Returns tool list + full request body schema for POST /mcp (JSON-RPC and simple JSON).";
 
 interface SimpleCheckArgs {
   page_image_base64: string;
@@ -679,13 +680,38 @@ function isDiscoveryMethod(method: unknown): boolean {
   );
 }
 
+function isToolsCallMethod(method: unknown): boolean {
+  if (typeof method !== "string") return false;
+  const m = method.trim().toLowerCase();
+  return m === "tools/call" || m === "tools.call";
+}
+
+/**
+ * Whether this POST /mcp body should hit the x402 payment gate.
+ *
+ * Charged: tools/call (any tool) and simple-JSON / named-tool bodies that
+ * invoke a tool. Free: initialize, tools/list, other discovery methods,
+ * empty/discovery bodies, and invalid bodies (400 without facilitator).
+ *
+ * Exported so payment tests can assert the gate classification.
+ */
+export function requiresX402Payment(body: unknown): boolean {
+  const adapted = adaptMcpPostBody(body);
+  if (adapted.mode === "simple-check") return true;
+  if (adapted.mode === "jsonrpc") {
+    return isToolsCallMethod(adapted.body.method);
+  }
+  // discovery | invalid → never charge
+  return false;
+}
+
 /**
  * Normalize a POST /mcp body into either JSON-RPC (for the MCP transport) or a
  * simple check-continuity invocation (plain JSON in/out for marketplace buyers).
  * Exported for unit tests / probes.
  */
 export function adaptMcpPostBody(body: unknown): AdaptedPostBody {
-  // Empty / null body → paid discovery deliverable (never 500).
+  // Empty / null body → free discovery deliverable (never 500).
   if (body == null || body === "") {
     return { mode: "discovery", id: null };
   }
@@ -711,7 +737,7 @@ export function adaptMcpPostBody(body: unknown): AdaptedPostBody {
 
   const o = body as Record<string, unknown>;
 
-  // Empty object → discovery (common after payment when buyer omits tool args).
+  // Empty object → free discovery (common when buyer omits tool args).
   if (Object.keys(o).length === 0) {
     return { mode: "discovery", id: null };
   }
@@ -891,7 +917,7 @@ function discoveryResult() {
     ],
     request_body: BODY_SCHEMA_HINT,
     instructions:
-      "POST /mcp after paying. Prefer JSON-RPC tools/call for MCP clients. Marketplace / simple buyers may POST flat JSON {page_image_base64, mime_type} and receive a plain ContinuityCheckResult (not a JSON-RPC envelope).",
+      "initialize and tools/list are free (no payment). Only tools/call (or simple JSON with page_image_base64) requires $0.10 USDT x402. Prefer JSON-RPC tools/call for MCP clients. Marketplace / simple buyers may POST flat JSON {page_image_base64, mime_type} and receive a plain ContinuityCheckResult (not a JSON-RPC envelope).",
   };
 }
 
@@ -1119,6 +1145,24 @@ function with402Body(mw: express.RequestHandler): express.RequestHandler {
   };
 }
 
+/**
+ * Conditional x402 gate for POST /mcp.
+ *
+ * Body is already parsed (express.json / raw /mcp parser). We classify the
+ * JSON-RPC method (or simple-JSON tool shape) FIRST, then only invoke the
+ * OKX payment middleware for tools/call. initialize / tools/list / discovery
+ * call next() with zero 402, zero facilitator verify/settle.
+ */
+function x402OnlyForToolsCall(mw: express.RequestHandler): express.RequestHandler {
+  const paid = with402Body(mw);
+  return (req, res, next) => {
+    if (!requiresX402Payment(req.body)) {
+      return next();
+    }
+    return paid(req, res, next);
+  };
+}
+
 
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -1126,6 +1170,9 @@ const upload = multer({ storage: multer.memoryStorage() });
 // tokenAddress is the USDT contract on X Layer (eip155:196).
 const USDT_X_LAYER = "0x779ded0c9e1022225f8e0630b35a9b54be713736" as const;
 
+// Only POST /mcp is registered with the SDK — and even then the Express
+// chain only invokes paymentMiddleware when requiresX402Payment(body) is true
+// (tools/call / simple-JSON tool). GET discovery is free and is not listed.
 const x402Routes = {
   "POST /mcp": {
     accepts: {
@@ -1138,17 +1185,6 @@ const x402Routes = {
     // Shown in PaymentRequired.resource.description — must document both body shapes
     // so marketplace buyers that send flat JSON (not JSON-RPC) know the contract.
     description: X402_POST_DESCRIPTION,
-    mimeType: "application/json",
-  },
-  "GET /mcp": {
-    accepts: {
-      scheme: "exact" as const,
-      price: "$0.10",
-      network: "eip155:196" as const,
-      payTo: AGENTIC_WALLET_ADDRESS,
-      tokenAddress: USDT_X_LAYER,
-    },
-    description: X402_GET_DESCRIPTION,
     mimeType: "application/json",
   },
 };
@@ -1280,12 +1316,18 @@ async function startServer(): Promise<void> {
     true       // syncFacilitatorOnStart — stub resolves immediately; real client hits OKX
   );
 
-  // ─── POST /mcp  (Accept-header fix → x402-gated → MCP transport) ──────────────────
+  // ─── POST /mcp  (Accept-header fix → method-aware x402 → handler) ──────────
   //
   // Accept-header fix: x402 discovery probes may send any Accept value;
   // MCP's handlePostRequest requires BOTH "application/json" AND
   // "text/event-stream" — force both so the MCP transport never 406s before
-  // the x402 middleware can return 402 for unpaid requests.
+  // the x402 middleware can return 402 for unpaid tools/call.
+  //
+  // Payment order (critical for OKX.AI A2MCP):
+  //   1. Body already parsed (upstream raw parser / express.json)
+  //   2. x402OnlyForToolsCall classifies method via requiresX402Payment(body)
+  //   3. ONLY tools/call (or simple-JSON tool body) enters paymentMiddleware
+  //   4. initialize / tools/list / discovery skip payment entirely → next()
   app.post(
     "/mcp",
     (req: Request, _res: Response, next) => {
@@ -1300,13 +1342,14 @@ async function startServer(): Promise<void> {
       req.rawHeaders.push("accept", "application/json, text/event-stream");
       next();
     },
-    with402Body(x402Mw),
+    x402OnlyForToolsCall(x402Mw),
     async (req: Request, res: Response) => {
 
     try {
       // Dual-mode body: JSON-RPC 2.0 (MCP clients) OR simple JSON tool params
-      // (OKX marketplace buyers). Empty / tools/list / initialize → discovery
-      // deliverable. tools/call check-continuity → normalized simple-check.
+      // (OKX marketplace buyers). Empty / tools/list / initialize → free
+      // discovery deliverable. tools/call check-continuity → paid simple-check
+      // (payment already verified by x402OnlyForToolsCall above).
       // Never 500 on body shape issues — 400 + body_schema instead.
       const adapted = adaptMcpPostBody(req.body);
       if (adapted.mode === "invalid") {
@@ -1321,13 +1364,13 @@ async function startServer(): Promise<void> {
         return;
       }
       if (adapted.mode === "discovery") {
-        console.log("[/mcp POST] discovery deliverable");
+        console.log("[/mcp POST] discovery deliverable (free — no x402)");
         sendDiscovery(res, adapted.id);
         return;
       }
       if (adapted.mode === "simple-check") {
         console.log(
-          `[/mcp POST] check-continuity (asJsonRpc=${Boolean(adapted.asJsonRpc)})`
+          `[/mcp POST] check-continuity paid path (asJsonRpc=${Boolean(adapted.asJsonRpc)})`
         );
         await handleSimpleCheck(adapted.args, res, {
           jsonrpcId: adapted.jsonrpcId,
@@ -1369,22 +1412,20 @@ async function startServer(): Promise<void> {
     }
   });
 
-  // ─── GET /mcp  (paid discovery — JSON-RPC, no SSE) ──────────────────────────
+  // ─── GET /mcp  (free discovery — JSON-RPC, no SSE, no x402) ────────────────
   //
-  // OKX x402 review replays use GET /mcp for paid discovery. The x402 gate
-  // (with402Body) verifies payment, then this handler returns a static JSON-RPC
-  // tools list synchronously so settlement completes before OKX's 30s timeout.
-  // Long-lived SSE via handleMcpHttp is NOT used here — it never ends under
-  // x402 response buffering, causing 499 client-abort after ~29.9s.
+  // OKX.AI requires charging only at tools/call. GET discovery (tool list +
+  // body schema) is free: no paymentMiddleware, no 402, no facilitator call.
+  // Synchronous res.json so the response ends immediately (no SSE hang).
   app.get(
     "/mcp",
-    with402Body(x402Mw),
     (_req: Request, res: Response) => {
       sendDiscovery(res, null);
     },
   );
 
-  // ─── DELETE /mcp  (Accept-header fix → MCP transport) ─────────────────────
+  // ─── DELETE /mcp  (Accept-header fix → MCP transport; no payment) ──────────
+  // Session teardown is free — no x402 middleware on this route.
   app.delete(
     "/mcp",
     (req: Request, _res: Response, next) => {
@@ -1469,9 +1510,9 @@ async function startServer(): Promise<void> {
       console.log(`\n🎨  Mnemo API running on http://localhost:${PORT}`);
       console.log(`     GET  /health       — liveness probe`);
       console.log(`     POST /check        — multipart REST (ungated, local dev)`);
-      console.log(`     POST /mcp          — x402-gated MCP endpoint ($0.10 USDT, eip155:196)`);
-      console.log(`     GET  /mcp          — x402-gated paid discovery (JSON-RPC tools list)`);
-      console.log(`     DELETE /mcp        — MCP session teardown\n`);
+      console.log(`     POST /mcp          — MCP; x402 only on tools/call ($0.10 USDT, eip155:196)`);
+      console.log(`     GET  /mcp          — free discovery (JSON-RPC tools list)`);
+      console.log(`     DELETE /mcp        — MCP session teardown (free)\n`);
     });
   }
 }

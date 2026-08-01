@@ -38,9 +38,18 @@ function httpsRequest(
 
 async function main() {
   const HOST = "mnemo-production-c4f1.up.railway.app";
-  const mcpBody = JSON.stringify({ jsonrpc: "2.0", method: "tools/list", id: 1 });
+  // Charge only on tools/call (initialize/tools/list are free per OKX.AI A2MCP).
+  const mcpBody = JSON.stringify({
+    jsonrpc: "2.0",
+    method: "tools/call",
+    id: 1,
+    params: {
+      name: "check-continuity",
+      arguments: { page_image_base64: "aGVsbG8=", mime_type: "image/png" },
+    },
+  });
 
-  console.log("Step 1: Unpaid probe (Accept: application/json only)...");
+  console.log("Step 1: Unpaid tools/call probe (Accept: application/json only)...");
   const unpaid = await httpsRequest(HOST, "/mcp", "POST", {
     "Content-Type": "application/json",
     "Content-Length": String(Buffer.byteLength(mcpBody)),
