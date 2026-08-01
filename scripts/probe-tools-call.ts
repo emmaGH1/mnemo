@@ -132,9 +132,9 @@ async function main() {
 
   console.log(`  Status: ${paid.statusCode}`);
   console.log(`  Content-Type: ${paid.headers["content-type"] ?? "(none)"}`);
-  console.log(`  Body[:600]: ${paid.body.slice(0, 600)}`);
   const paidElapsedMs = Date.now() - step3Start;
   console.log(`  Elapsed: ${paidElapsedMs}ms`);
+  console.log(`  Body (full):\n${paid.body}`);
 
   // Step 4: Interpret the result — strict canary.
   // Pass requires: HTTP 200, JSON body, JSON-RPC 2.0, no .error, has .result.content,
@@ -209,11 +209,22 @@ async function main() {
   console.log("  ✅ PASS — 200 + JSON-RPC result + PAYMENT-RESPONSE settlement header.");
   if (inner) {
     console.log(`  flags: ${inner.flags?.length ?? 0}, canon_additions: ${inner.canon_additions?.length ?? 0}`);
+    console.log("  --- continuity result (parsed) ---");
+    console.log(JSON.stringify(inner, null, 2));
   } else {
     const first = parsed.result.content[0]?.text ?? "";
     console.log(`  content[0].text[:200]: ${String(first).slice(0, 200)}`);
   }
-  console.log(`  payment-response[:80]: ${String(paymentResponse).slice(0, 80)}`);
+  console.log(`  payment-response base64 length: ${String(paymentResponse).length}`);
+  try {
+    const settled = JSON.parse(
+      Buffer.from(String(paymentResponse), "base64").toString("utf-8")
+    );
+    console.log("  --- payment-response (decoded) ---");
+    console.log(JSON.stringify(settled, null, 2));
+  } catch {
+    console.log(`  payment-response (raw): ${String(paymentResponse)}`);
+  }
   process.exit(0);
 }
 
