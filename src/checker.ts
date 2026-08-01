@@ -4,10 +4,20 @@
 // Routes Gemini 2.5 Flash via OpenRouter (OpenAI-compatible API).
 // To pay Gemini directly instead, swap `getClient()` → Google SDK; the rest
 // of the call shape is identical because Gemini honors OpenAI's chat format.
+//
+// Before the model call we downscale oversized page images (max edge 1536px)
+// and re-encode as JPEG or WebP (q≈80), picking the smaller payload — raw
+// multi-MB PNGs were pushing OpenRouter near/over the 60s client timeout.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import OpenAI from "openai";
+import sharp from "sharp";
 import type { CanonDoc, ContinuityCheckResult } from "./types.js";
+
+/** Longest edge after downscale. Enough for eye/hair/clothing continuity; keeps tokens low. */
+const MAX_IMAGE_EDGE = 1536;
+/** Encode quality for model-bound JPEG/WebP (lossy is fine for continuity attributes). */
+const MODEL_ENCODE_QUALITY = 80;
 
 // ---------------------------------------------------------------------------
 // System prompt — strict continuity checker persona
@@ -85,9 +95,75 @@ function getClient(apiKey: string): OpenAI {
   return new OpenAI({
     apiKey,
     baseURL: "https://openrouter.ai/api/v1",
-    timeout: 60_000,    // 60s per attempt — under the x402 auth window with headroom
-    maxRetries: 1,      // one transient retry; SDK uses exponential backoff
+    timeout: 60_000, // 60s hard cap — under the x402 auth window
+    // Timeouts are retried by the OpenAI SDK by default; maxRetries:1 made
+    // failures wait ~120s before the buyer saw a 500. Fail once at 60s.
+    maxRetries: 0,
   });
+}
+
+type ModelImageMime = "image/png" | "image/jpeg" | "image/webp";
+
+/**
+ * Downscale (max edge MAX_IMAGE_EDGE, aspect ratio preserved) and re-encode
+ * as JPEG or WebP at MODEL_ENCODE_QUALITY — whichever is smaller.
+ * Does not enlarge. On sharp failure, returns the original unchanged.
+ * Exported for local probes / unit checks.
+ */
+export async function prepareImageForModel(
+  pageImageBase64: string,
+  mimeType: ModelImageMime = "image/png"
+): Promise<{ base64: string; mimeType: ModelImageMime }> {
+  const input = Buffer.from(pageImageBase64, "base64");
+  try {
+    // Fresh instances — sharp pipelines are single-use once a terminal op runs.
+    const meta = await sharp(input, { failOn: "none" }).metadata();
+    const w = meta.width ?? 0;
+    const h = meta.height ?? 0;
+    const longest = Math.max(w, h);
+
+    const resized = sharp(input, { failOn: "none" })
+      .rotate() // honor EXIF orientation
+      .resize(MAX_IMAGE_EDGE, MAX_IMAGE_EDGE, {
+        fit: "inside",
+        withoutEnlargement: true,
+      });
+
+    // Encode both formats at q≈80; pick the smaller for OpenRouter.
+    const [jpegBuf, webpBuf] = await Promise.all([
+      resized
+        .clone()
+        .jpeg({ quality: MODEL_ENCODE_QUALITY, mozjpeg: true })
+        .toBuffer(),
+      resized
+        .clone()
+        .webp({ quality: MODEL_ENCODE_QUALITY })
+        .toBuffer(),
+    ]);
+
+    const jpegB64 = jpegBuf.toString("base64");
+    const webpB64 = webpBuf.toString("base64");
+    const useWebp = webpB64.length < jpegB64.length;
+    const outB64 = useWebp ? webpB64 : jpegB64;
+    const outMime: ModelImageMime = useWebp ? "image/webp" : "image/jpeg";
+
+    // Prefer original only if re-encode grew the payload and we did not need a downscale.
+    if (outB64.length >= pageImageBase64.length && longest <= MAX_IMAGE_EDGE) {
+      return { base64: pageImageBase64, mimeType };
+    }
+
+    console.log(
+      `[checker] image for model: ${w}x${h} → maxEdge=${MAX_IMAGE_EDGE} ` +
+        `in=${pageImageBase64.length}b64 out=${outB64.length}b64 ` +
+        `${outMime} q=${MODEL_ENCODE_QUALITY} ` +
+        `(jpeg=${jpegB64.length} webp=${webpB64.length})`
+    );
+    return { base64: outB64, mimeType: outMime };
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.warn(`[checker] prepareImageForModel failed, using original: ${msg}`);
+    return { base64: pageImageBase64, mimeType };
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -121,6 +197,14 @@ export async function checkContinuity(
     );
   }
 
+  // Resize/re-encode happens HERE only — right before OpenRouter.
+  // Upload/validation (mime allowlist, base64 normalize, body adapter, zod
+  // tool schema) stays upstream on the original client payload and is
+  // deliberately untouched by prepareImageForModel.
+  const prepared = await prepareImageForModel(pageImageBase64, mimeType);
+  const imageB64 = prepared.base64;
+  const imageMime = prepared.mimeType;
+
   const pageLocation =
     epNumber != null || panelNumber != null
       ? `\n\nThis page is episode ${epNumber ?? "?"}, panel ${panelNumber ?? "?"}. Use these numbers verbatim in any canon_additions ep/panel fields.`
@@ -145,7 +229,7 @@ export async function checkContinuity(
               },
               {
                 type: "image_url",
-                image_url: { url: `data:${mimeType};base64,${pageImageBase64}` },
+                image_url: { url: `data:${imageMime};base64,${imageB64}` },
               },
             ],
           },
