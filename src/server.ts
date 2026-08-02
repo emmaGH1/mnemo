@@ -470,6 +470,25 @@ export function lenientParseJson(
 
   const preview = text.length > 160 ? `${text.slice(0, 160)}…` : text;
 
+  // Fast path: valid JSON (all production tool bodies with base64 images).
+  // Must run BEFORE any whole-string scans/replaces — those are O(n) over multi-MB
+  // payloads and delay the 402 / paid path enough for marketplace clients to time out.
+  try {
+    return { ok: true, value: JSON.parse(text) };
+  } catch {
+    /* fall through to lenient transforms */
+  }
+
+  // Large non-JSON bodies: do not run expensive regex rewrites over multi-MB base64.
+  // Callers that send well-formed JSON already returned above.
+  if (text.length > 256_000) {
+    return {
+      ok: false,
+      error: "Invalid JSON (large body; only strict JSON accepted over 256KB)",
+      preview,
+    };
+  }
+
   const attempts: string[] = [text];
 
   // Double-encoded JSON string: "\"{...}\"" or "\"{'a':1}\""
@@ -1011,12 +1030,28 @@ app.set("trust proxy", true);
  *
  * Other routes still use express.json below.
  */
+// Continuity tool bodies carry base64 images. Cap at 12mb so we fail fast with
+// 413 instead of buffering unbounded input (Railway edge / slow clients otherwise
+// look like "endpoint unreachable" when the request hangs).
+const MCP_BODY_MAX_BYTES = 12 * 1024 * 1024;
+
 app.use((req: Request, res: Response, next) => {
   if (!(req.method === "POST" && (req.path === "/mcp" || req.path === "/mcp/"))) {
     return next();
   }
 
+  const contentLength = Number(req.headers["content-length"] ?? 0);
+  if (Number.isFinite(contentLength) && contentLength > MCP_BODY_MAX_BYTES) {
+    res.status(413).json({
+      error: "payload_too_large",
+      message: `Request body exceeds ${MCP_BODY_MAX_BYTES} bytes. Compress or resize the page image (JPEG/WebP, max edge ~1536px) before base64 encoding.`,
+      body_schema: BODY_SCHEMA_HINT,
+    });
+    return;
+  }
+
   const chunks: Buffer[] = [];
+  let total = 0;
   let settled = false;
   const finish = (err?: Error) => {
     if (settled) return;
@@ -1053,7 +1088,22 @@ app.use((req: Request, res: Response, next) => {
     next();
   };
 
-  req.on("data", (c: Buffer) => chunks.push(c));
+  req.on("data", (c: Buffer) => {
+    total += c.length;
+    if (total > MCP_BODY_MAX_BYTES) {
+      if (!settled) {
+        settled = true;
+        res.status(413).json({
+          error: "payload_too_large",
+          message: `Request body exceeds ${MCP_BODY_MAX_BYTES} bytes. Compress or resize the page image before sending.`,
+          body_schema: BODY_SCHEMA_HINT,
+        });
+        req.destroy();
+      }
+      return;
+    }
+    chunks.push(c);
+  });
   req.on("end", () => finish());
   req.on("error", (e: Error) => finish(e));
 });

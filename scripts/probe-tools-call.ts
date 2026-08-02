@@ -63,7 +63,18 @@ async function main() {
     console.error(`Test image not found at ${TEST_IMAGE_PATH}`);
     process.exit(1);
   }
-  const imageBase64 = fs.readFileSync(TEST_IMAGE_PATH).toString("base64");
+  // Compress before wire: raw ~2MB PNGs make ~3MB JSON bodies that stall some
+  // client/proxy paths and look like "endpoint unreachable" under short timeouts.
+  const sharp = (await import("sharp")).default;
+  const rawBuf = fs.readFileSync(TEST_IMAGE_PATH);
+  const jpegBuf = await sharp(rawBuf)
+    .resize({ width: 1024, withoutEnlargement: true })
+    .jpeg({ quality: 70 })
+    .toBuffer();
+  const imageBase64 = jpegBuf.toString("base64");
+  console.log(
+    `Image: ${rawBuf.length} raw → ${jpegBuf.length} jpeg (body will be ~${Math.round((imageBase64.length + 200) / 1024)}KB)`
+  );
 
   // ── Step 1: Unpaid tools/call → expect 402 ──────────────────────────────────
   console.log("Step 1: Unpaid tools/call (should return 402)...");
@@ -73,7 +84,7 @@ async function main() {
     id: 1,
     params: {
       name: "check-continuity",
-      arguments: { page_image_base64: imageBase64, mime_type: "image/png" },
+      arguments: { page_image_base64: imageBase64, mime_type: "image/jpeg" },
     },
   });
 
