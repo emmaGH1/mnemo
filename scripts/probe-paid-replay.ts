@@ -37,7 +37,7 @@ function httpsRequest(
 }
 
 async function main() {
-  const HOST = "mnemo-production-c4f1.up.railway.app";
+  const HOST = process.env.MNEMO_HOST ?? "mnemo-production-c4f1.up.railway.app";
   // Charge only on tools/call (initialize/tools/list are free per OKX.AI A2MCP).
   const mcpBody = JSON.stringify({
     jsonrpc: "2.0",

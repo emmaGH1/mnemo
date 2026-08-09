@@ -1,7 +1,7 @@
 // Production: body-hardening checks (lenient JSON must not 500).
 import * as https from "https";
 
-const HOST = "mnemo-production-c4f1.up.railway.app";
+const HOST = process.env.MNEMO_HOST ?? "mnemo-production-c4f1.up.railway.app";
 const B64 = "aGVsbG8gd29ybGQ=";
 
 function request(

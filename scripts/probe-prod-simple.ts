@@ -1,7 +1,7 @@
 // Production smoke: dual-mode unpaid shapes + 402 schema documentation.
 import * as https from "https";
 
-const HOST = "mnemo-production-c4f1.up.railway.app";
+const HOST = process.env.MNEMO_HOST ?? "mnemo-production-c4f1.up.railway.app";
 
 function request(
   method: string,

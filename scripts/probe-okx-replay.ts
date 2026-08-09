@@ -13,7 +13,7 @@ import * as path from "path";
 import * as dotenv from "dotenv";
 dotenv.config();
 
-const HOST = "mnemo-production-c4f1.up.railway.app";
+const HOST = process.env.MNEMO_HOST ?? "mnemo-production-c4f1.up.railway.app";
 const TEST_IMAGE_PATH = path.resolve(__dirname, "..", "test-images", "page_contradiction.png");
 const REQ_TIMEOUT_MS = 180_000; // 3 min — x402 auth window is 300s
 const MAX_ELAPSED_MS = 120_000;

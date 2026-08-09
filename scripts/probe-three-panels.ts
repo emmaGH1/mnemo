@@ -13,7 +13,7 @@ import * as dotenv from "dotenv";
 
 dotenv.config();
 
-const HOST = "mnemo-production-c4f1.up.railway.app";
+const HOST = process.env.MNEMO_HOST ?? "mnemo-production-c4f1.up.railway.app";
 const SERIES_ID = "lore-olympus";
 
 const PANEL_FILES = [

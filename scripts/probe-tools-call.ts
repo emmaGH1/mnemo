@@ -15,7 +15,7 @@ import * as dotenv from "dotenv";
 
 dotenv.config();
 
-const HOST = "mnemo-production-c4f1.up.railway.app";
+const HOST = process.env.MNEMO_HOST ?? "mnemo-production-c4f1.up.railway.app";
 const TEST_IMAGE_PATH = path.resolve(__dirname, "..", "test-images", "page_contradiction.png");
 
 interface HttpResponse {
