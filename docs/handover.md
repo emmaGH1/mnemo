@@ -4,34 +4,25 @@
 > be enough to resume cold. If they aren't, this doc is under-written — fix it
 > before ending your session.
 
-**Last updated**: 2026-08-25, end of C1
+**Last updated**: 2026-08-25, end of C2
 **Branch**: `jam/spoiler-guard` (do **not** commit jam work to `master`)
-**Last tag**: `jam-c0`
+**Last tag**: `jam-c2`
 
 ---
 
 ## NEXT ACTION
 
-**Checkpoint C2 — Minds handshake.** Nothing has been wired to Minds yet.
+**Checkpoint C3 — demo canon.** Hand-author the Lore Olympus canon across
+**episodes 1–50**, ~40 facts. The current `data/series/lore-olympus/canon.json`
+is a 3-episode fixture and cannot express "spoils ep 47 while you're on 30".
 
-1. Confirm the key works:
-   `npx @animocabrands/minds-cli@latest doctor --pretty`
-2. `minds list --pretty` → note the `mindId` (UUID, not the display name)
-3. `npm install @animocabrands/minds-client-lib`
-4. Create `src/minds.ts` — thin wrapper over `createMindsClient`,
-   `ensureConversation`, `sendMessage`, `waitForReply`, `getHistory`
-5. **The C2 gate — prove cross-session memory:**
-   - Send the canon to the Mind in one process
-   - Exit
-   - In a **fresh process**, ask a recall question ("what colour are
-     Persephone's eyes and which episode established that?")
-   - Correct answer = memory holds → architecture A (Mind owns memory)
-   - Wrong/empty = architecture B (canon server-side, pass the relevant slice
-     per call)
-   - **Record which architecture won in this file before continuing.**
-6. Commit `feat: Minds client integration`, tag `jam-c2`, push
+- Author fan comments yourself (never scrape real ones — third-party IP)
+- Canon is a *seeded demo fixture* — label it in the README
+- Output: `data/series/lore-olympus/canon.json` wide enough for C4's four
+  verdicts (`safe` / `spoiler` / `lore_question` / `contradiction`)
+- Don't sink 6–10h into scraping 50 episodes — hand-author
 
-Then C3 (demo canon) — see [`jam-roadmap.md`](jam-roadmap.md).
+Then C4 (moderation engine, **HARD GATE**) — see `jam-roadmap.md`.
 
 ### Also owed by the user (not code)
 
@@ -44,7 +35,17 @@ Then C3 (demo canon) — see [`jam-roadmap.md`](jam-roadmap.md).
 
 ## What just happened (this session)
 
-Strategic pivot, then C0 + C1.
+**C2 — Minds handshake, gate passed.** Doctor green, mind `mnemo`
+(`5470503e-f36b-1410-8466-00039ce7df11`, minimax-m3, cognition ~160).
+Installed `@animocabrands/minds-client-lib@0.1.4`. Created `src/minds.ts` (lazy
+dynamic import — the lib is ESM-only and this repo is CJS) exporting `getMinds`
+(singleton) and `tell` (ensureConversation + sendMessage + waitForReply).
+Gate script `scripts/minds-gate.ts seed|recall`: seeded the Lore Olympus canon
+into the conversation in one process, then recalled in a **fresh process** —
+the Mind answered "Green, established in episode 1, panel 1" → **architecture A
+(Mind owns memory) won**. Recorded above. Tagged `jam-c2`, pushed.
+
+**Earlier this session:** C0 + C1 (see below).
 
 **The pivot.** Mnemo was a webtoon continuity checker with zero Minds
 integration and no fit to any of the three jam tracks — scoring ~31/50 on the
@@ -82,6 +83,7 @@ discipline section, and a **context-overload protocol**. Created
 | Video | Screen recording + CapCut + own voice. **No motion graphics** |
 | Genre breadth | A README/pitch line only. **Not a build** |
 | Branch | `jam/spoiler-guard`; merge to master at C12 after `probe:okx` |
+| Canon memory architecture | **A — Mind owns memory** (cross-session recall proven at C2). Server sends full canon once; subsequent calls rely on conversation history |
 | `.opencode/` | Gitignored |
 
 ---

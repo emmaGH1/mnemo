@@ -68,7 +68,7 @@ Each checkpoint = one commit. Tagged ones are session boundaries and revert poin
 |----|------|-----|--------|
 | **C0** | Baseline: commit 5.04, gitignore `.opencode/`, fix README URLs, branch | `jam-c0` | ✅ done |
 | **C1** | Docs: AGENTS.md jam section + context protocol, this roadmap, handover | — | ✅ done |
-| **C2** | Minds handshake: client lib, `src/minds.ts`, **prove cross-session recall** | `jam-c2` | ⬜ |
+| **C2** | Minds handshake: client lib, `src/minds.ts`, **prove cross-session recall** → **A won** (Mind owns memory) | `jam-c2` | ✅ done |
 | **C3** | Demo canon: ~40 facts hand-authored across **episodes 1–50** | — | ⬜ |
 | **C4** | Moderation engine: `POST /moderation/check` → 4 verdicts. **HARD GATE** | `jam-c4` | ⬜ |
 | **C5** | Verdict cache for the ~20 seeded comments (real Mind output, cached) | — | ⬜ |
