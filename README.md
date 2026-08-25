@@ -3,8 +3,8 @@
 > **Continuity, kept.** The memory layer for serialized webtoon and comic art.
 
 [![OKX.AI Agent 6211](https://img.shields.io/badge/OKX.AI-Agent_6211-000?style=flat-square&logo=okx&logoColor=white)](https://www.okx.ai/agents/6211)
-[![x402 $0.10/check](https://img.shields.io/badge/x402-0.1_USDT_per_check-000?style=flat-square)](https://github.com/emma0x/mnemo#api)
-[![MCP Live](https://img.shields.io/badge/MCP-mnemo--production--c4f1.up.railway.app-000?style=flat-square)](https://mnemo-production-c4f1.up.railway.app/mcp)
+[![x402 $0.10/check](https://img.shields.io/badge/x402-0.1_USDT_per_check-000?style=flat-square)](https://github.com/emmaGH1/mnemo#api)
+[![MCP Live](https://img.shields.io/badge/MCP-mnemo--9vze.onrender.com-000?style=flat-square)](https://mnemo-9vze.onrender.com/mcp)
 [![License ISC](https://img.shields.io/badge/license-ISC-000?style=flat-square)](LICENSE)
 
 Mnemo is a paid MCP agent that checks webtoon / comic pages for character
@@ -15,7 +15,7 @@ field, episode + panel refs, explanation) plus proposed canon additions.
   [x402](https://www.x402.org/) on X Layer (eip155:196)
 - **No account, no API key** — just a signed EIP-3009 payment
 - **Listed on the OKX.AI Agent Service Platform** as Agent 6211
-- **Endpoint**: `https://mnemo-production-c4f1.up.railway.app/mcp`
+- **Endpoint**: `https://mnemo-9vze.onrender.com/mcp`
 - **Built for**: webtoon artists, studios, and the AI agents that work for them
 
 ---
@@ -31,7 +31,7 @@ I'd like to use the service provided by Agent 6211:
 
 Service title: Continuity Check
 Service type: A2MCP
-Endpoint: https://mnemo-production-c4f1.up.railway.app/mcp
+Endpoint: https://mnemo-9vze.onrender.com/mcp
 
 Please use OKX Agent Payments Protocol to send a request to this endpoint.
 ```
@@ -44,11 +44,11 @@ Attach a page image. The agent will sign a $0.10 USDT payment, call
 ## Quick start (humans)
 
 ```bash
-git clone https://github.com/emma0x/mnemo.git
+git clone https://github.com/emmaGH1/mnemo.git
 cd mnemo
 npm install
 cp .env.example .env
-# edit .env — set GEMINI_API_KEY (free at https://aistudio.google.com/apikey)
+# edit .env — set OPENROUTER_API_KEY (from https://openrouter.ai/keys)
 npm run dev                          # Express on http://localhost:3000
 ```
 
@@ -85,7 +85,7 @@ The 402 challenge's `resource.description` and paid `GET /mcp` discovery both do
 **Unpaid → HTTP 402** (challenge):
 
 ```bash
-curl -X POST https://mnemo-production-c4f1.up.railway.app/mcp \
+curl -X POST https://mnemo-9vze.onrender.com/mcp \
   -H "Content-Type: application/json" \
   -H "Accept: application/json, text/event-stream" \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
@@ -96,7 +96,7 @@ curl -X POST https://mnemo-production-c4f1.up.railway.app/mcp \
   "x402Version": 2,
   "error": "Payment required",
   "resource": {
-    "url": "https://mnemo-production-c4f1.up.railway.app/mcp",
+    "url": "https://mnemo-9vze.onrender.com/mcp",
     "description": "Continuity check ($0.10 USDT, X Layer). Body: MCP JSON-RPC tools/call ... OR simple JSON {page_image_base64, mime_type, ...}",
     "mimeType": "application/json"
   },
@@ -118,7 +118,7 @@ curl -X POST https://mnemo-production-c4f1.up.railway.app/mcp \
 # 1. decode the 402 challenge
 # 2. sign an EIP-3009 transferWithAuthorization
 # 3. retry with the signed payment in PAYMENT-SIGNATURE
-curl -X POST https://mnemo-production-c4f1.up.railway.app/mcp \
+curl -X POST https://mnemo-9vze.onrender.com/mcp \
   -H "Content-Type: application/json" \
   -H "Accept: application/json, text/event-stream" \
   -H "PAYMENT-SIGNATURE: <signed-payment-base64>" \
@@ -137,7 +137,7 @@ curl -X POST https://mnemo-production-c4f1.up.railway.app/mcp \
 **Paid → HTTP 200** — simple JSON shape (same payment header):
 
 ```bash
-curl -X POST https://mnemo-production-c4f1.up.railway.app/mcp \
+curl -X POST https://mnemo-9vze.onrender.com/mcp \
   -H "Content-Type: application/json" \
   -H "PAYMENT-SIGNATURE: <signed-payment-base64>" \
   -d '{
@@ -274,7 +274,7 @@ npm run dev          # http://localhost:3001
 ```bash
 npm run test:continuity                                    # Aria fixture — checker logic
 npm run test:payment                                       # x402 gate: A, B, C
-npx tsx scripts/probe-tools-call.ts                        # Full paid path on Railway
+npx tsx scripts/probe-tools-call.ts                        # Full paid path on Render
 npx tsx scripts/probe-paid-replay.ts                       # 402 → sign → 200 replay
 npx tsx scripts/e2e-test.ts                                # Production smoke
 ```
@@ -295,7 +295,7 @@ Mnemo is listed on the OKX.AI Agent Service Platform.
 | Service id        | `34794`                                                                     |
 | Service type      | A2MCP                                                                        |
 | Fee               | `0.1` USDT per call                                                          |
-| Endpoint          | https://mnemo-production-c4f1.up.railway.app/mcp                            |
+| Endpoint          | https://mnemo-9vze.onrender.com/mcp                            |
 | Profile picture   | `frontend/public/listing-avatar.jpg` (1408×1408, full logo, black bg)       |
 
 Live state, re-push commands, and the canonical copy live in
@@ -324,7 +324,7 @@ onchainos agent update --agent-id 6211 --service '[{
   "serviceDescription": "Drop a page image; get a JSON of every continuity flag vs your series canon. Per-character inconsistencies (severity, field, episode + panel refs, explanation) plus proposed canon additions. Inputs: page image (base64), MIME type, optional canon JSON, optional dialogue. 0.1 USDT per check via x402.",
   "serviceType": "A2MCP",
   "fee": "0.1",
-  "endpoint": "https://mnemo-production-c4f1.up.railway.app/mcp"
+  "endpoint": "https://mnemo-9vze.onrender.com/mcp"
 }]'
 ```
 
@@ -341,13 +341,15 @@ onchainos agent update --agent-id 6211 --service '[{
 ## Tech stack
 
 **Backend** — Express 5, MCP SDK 1.29, `@okxweb3/x402-express` 0.1.1,
-`@google/generative-ai` 0.24, viem 2.55, zod 4, multer 2, TypeScript 7.
+`openai` (OpenRouter-compatible client), viem 2.55, zod 4, multer 2,
+TypeScript 7.
 
 **Frontend** — Next.js 15, React 19, Tailwind v4, framer-motion 12, TypeScript
 5.8.
 
-**AI** — Gemini 2.5 Flash (with a fallback list). Chosen for vision quality
-+ cost on the free tier; upgraded from the deprecated Gemini 2.0 Flash.
+**AI** — Gemini 2.5 Flash via [OpenRouter](https://openrouter.ai) (with a
+fallback model list). Routed through OpenRouter because Google AI Studio's free
+tier rate-limits aggressively and rejects virtual cards for paid billing.
 
 **Blockchain** — X Layer (eip155:196), USDT contract
 `0x779d…3736`, EIP-3009 `transferWithAuthorization`.
