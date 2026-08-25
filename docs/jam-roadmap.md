@@ -75,7 +75,7 @@ Each checkpoint = one commit. Tagged ones are session boundaries and revert poin
 | **C6** | `/community` page: seeded feed + blur/reveal → **`/` is now the feed — slider + blur/reveal + chips verified live, beat 8 works** | — | ✅ done |
 | **C7** | Progress selector → re-evaluation. **Beat 8 works** → **live composer on `/` (beat 6); beat 8 cached flip proven. BLOCKED on live verify: cognition −16.3** | `jam-c7` | ⬜ (code done) |
 | **C8** | Live comment box (beat 6) + lore-question path (beat 7) → **composer (C7) + deterministic `/canon/answer` (source: canon, verified) + clickable chip** | — | ✅ done |
-| **C9** | Autonomy: background worker + SSE + unprompted digest, `/digest` | `jam-c9` | ⬜ |
+| **C9** | Autonomy: background worker + SSE + unprompted digest, `/digest` → **`/digest` page + SSE worker ticker from cached verdicts, verified** | `jam-c9` | ✅ done |
 | **C10** | Copy/IA pass: demo to `/`, marketing to `/mcp-service` | — | ⬜ |
 | **C11** | Video: script → VO → capture → CapCut → captions | `jam-c11` | ⬜ |
 | **C12** | README + diagram, **submit branch URL** (no master merge) | `jam-submit` | ⬜ |

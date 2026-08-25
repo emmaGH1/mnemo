@@ -9,6 +9,7 @@ import { OKX_AGENT_URL } from "@/config";
 
 const product: [string, string][] = [
   ["Community feed", "#feed"],
+  ["Creator digest", "/digest"],
 ];
 
 const connect: [string, string][] = [

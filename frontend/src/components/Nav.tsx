@@ -10,6 +10,7 @@ import { OKX_AGENT_URL } from "@/config";
 
 const links = [
   { label: "Community feed", href: "#feed" },
+  { label: "Creator digest", href: "/digest" },
 ];
 
 export default function Nav() {

@@ -47,7 +47,7 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { checkContinuity, getActiveModel } from "./checker.js";
 import { runCheck } from "./check-handler.js";
 import { loadCanon, listSeries, seriesDir as resolveCanonDir } from "./resolve-canon.js";
-import { moderate, effectiveVerdict, type CachedVerdict, type ModerationResult } from "./moderation.js";
+import { moderate, effectiveVerdict, type CachedVerdict, type ModerationResult, type ModerationVerdict } from "./moderation.js";
 import { answerFromCanon } from "./canon-answer.js";
 import type { CanonDoc } from "./types.js";
 
@@ -1363,6 +1363,130 @@ app.post("/canon/answer", (req: Request, res: Response) => {
     const message = err instanceof Error ? err.message : String(err);
     res.status(500).json({ error: message });
   }
+});
+
+// ─── GET /digest + /digest/stream  (ungated, demo) ─────────────────────────
+// Beat 9: the "overnight" creator digest. Aggregates the CACHED real Mind
+// verdicts (never a live call) so it works with zero cognition. The SSE stream
+// simulates the unprompted background worker: it recomputes the digest and
+// broadcasts to subscribers on a schedule.
+interface DigestItem {
+  comment_id: string;
+  author: string;
+  text: string;
+  spoils_episode?: number;
+}
+interface DigestData {
+  series_id: string;
+  generated_at: string;
+  source: "cached Mind verdicts";
+  counts: Record<ModerationVerdict, number> & { total: number };
+  worst_spoiler: DigestItem | null;
+  spoilers: DigestItem[];
+  questions: DigestItem[];
+  contradictions: DigestItem[];
+}
+
+function computeDigest(seriesId: string): DigestData {
+  const dir = resolveCanonDir(seriesId);
+  const commentsPath = path.join(dir, "seed-comments.json");
+  const verdictsPath = path.join(dir, "verdicts.json");
+  if (!fs.existsSync(commentsPath) || !fs.existsSync(verdictsPath)) {
+    throw new Error(`No seeded feed for series "${seriesId}"`);
+  }
+  const comments = JSON.parse(fs.readFileSync(commentsPath, "utf-8")).comments as {
+    id: string;
+    author: string;
+    text: string;
+  }[];
+  const verdicts = JSON.parse(fs.readFileSync(verdictsPath, "utf-8")).verdicts as CachedVerdict[];
+  const byId = new Map(comments.map((c) => [c.id, c]));
+  const counts = {
+    safe: 0,
+    spoiler: 0,
+    lore_question: 0,
+    contradiction: 0,
+    total: verdicts.length,
+  } as DigestData["counts"];
+  const spoilers: DigestItem[] = [];
+  const questions: DigestItem[] = [];
+  const contradictions: DigestItem[] = [];
+  for (const v of verdicts) {
+    counts[v.verdict] = (counts[v.verdict] ?? 0) + 1;
+    const meta = byId.get(v.comment_id);
+    const item: DigestItem = {
+      comment_id: v.comment_id,
+      author: meta?.author ?? "",
+      text: meta?.text ?? "",
+      ...(v.spoils_episode != null ? { spoils_episode: v.spoils_episode } : {}),
+    };
+    if (v.verdict === "spoiler") spoilers.push(item);
+    else if (v.verdict === "lore_question") questions.push(item);
+    else if (v.verdict === "contradiction") contradictions.push(item);
+  }
+  spoilers.sort((a, b) => (b.spoils_episode ?? 0) - (a.spoils_episode ?? 0));
+  return {
+    series_id: seriesId,
+    generated_at: new Date().toISOString(),
+    source: "cached Mind verdicts",
+    counts,
+    worst_spoiler: spoilers[0] ?? null,
+    spoilers,
+    questions,
+    contradictions,
+  };
+}
+
+app.get("/digest", (req: Request, res: Response) => {
+  const seriesId = (req.query.series_id as string) || "lore-olympus";
+  if (!/^[a-z0-9_-]+$/.test(seriesId)) {
+    res.status(400).json({ error: "invalid series_id" });
+    return;
+  }
+  try {
+    res.json(computeDigest(seriesId));
+  } catch (err: unknown) {
+    res.status(404).json({ error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
+const digestSubscribers = new Set<Response>();
+let digestTimer: NodeJS.Timeout | null = null;
+
+function broadcastDigest(): void {
+  let data: DigestData;
+  try {
+    data = computeDigest("lore-olympus");
+  } catch {
+    return;
+  }
+  const payload = `event: digest\ndata: ${JSON.stringify(data)}\n\n`;
+  for (const res of digestSubscribers) res.write(payload);
+}
+
+app.get("/digest/stream", (req: Request, res: Response) => {
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache, no-transform");
+  res.setHeader("Connection", "keep-alive");
+  res.flushHeaders();
+  digestSubscribers.add(res);
+  try {
+    res.write(`event: digest\ndata: ${JSON.stringify(computeDigest("lore-olympus"))}\n\n`);
+  } catch {
+    // ignore — client may already be gone
+  }
+  if (!digestTimer) {
+    // ponytail: single shared worker tick for all subscribers; cadence is a
+    // demo stand-in for the "daily" schedule — bump when real scheduling lands.
+    digestTimer = setInterval(broadcastDigest, 45_000);
+  }
+  req.on("close", () => {
+    digestSubscribers.delete(res);
+    if (digestSubscribers.size === 0 && digestTimer) {
+      clearInterval(digestTimer);
+      digestTimer = null;
+    }
+  });
 });
 
 // ─── GET /community/feed  (ungated, demo) ────────────────────────────────────

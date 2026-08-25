@@ -4,26 +4,29 @@
 > be enough to resume cold. If they aren't, this doc is under-written — fix it
 > before ending your session.
 
-**Last updated**: 2026-08-25, end of C8
+**Last updated**: 2026-08-25, end of C9
 **Branch**: `jam/spoiler-guard` (do **not** commit jam work to `master`)
-**Last tag**: `jam-c7`
+**Last tag**: `jam-c9`
 
 ---
 
 ## NEXT ACTION
 
-**Checkpoint C9 — overnight digest (beat 9).** C8 shipped the no-credit beat 7:
-`POST /canon/answer` deterministically answers lore questions from `canon.json`
-(labelled `source: canon`, verified live: eyes→green ep1, Minthe→naiad,
-Hecate→best_friend ep9, kiss→ep25), the `Answered from canon` chip is now
-clickable and renders a cited answer block, and `/moderation/check` returns a
-friendly `503 kind:"cognition_empty"` when the Mind is out of credits.
+**Checkpoint C10 — `/mcp-service` page.** C8 + C9 shipped the two remaining
+no-credit beats: `POST /canon/answer` (deterministic, `source: canon`,
+verified: eyes→green ep1, Minthe→naiad, Hecate→best_friend ep9, kiss→ep25)
+drives the now-clickable `Answered from canon` chip, `/moderation/check`
+returns a friendly `503 kind:"cognition_empty"` when credits run out, and the
+`/digest` page (beat 9) shows the overnight counts (5 spoilers / 3 questions /
+2 contradictions) with a live SSE worker ticker — all from cached real Mind
+verdicts, zero live calls.
 
-- C9: `GET /digest` (aggregates `verdicts.json` — real cached Mind output:
-  verdict counts, worst spoiler, `generated_at`) + `GET /digest/stream` SSE
-  (simulated worker recomputes + broadcasts, honest "cached Mind verdicts"
-  label) + `/digest` page in the frontend (AMOLED) + Nav/Footer link
-- Then C10: `/mcp-service` page (move parked marketing sections), `/` stays the feed
+- C10: new `/mcp-service` page reusing the parked marketing components
+  (Hero, Showcase, VideoCards, HowToUse, Pricing) — **do not delete them**;
+  `/` stays the community feed; finalize Nav/Footer IA
+- Then C11: rewrite the video beat sheet for the no-credit reality (beats
+  1–5, 8, 9 filmable; 6/7 = canon-answer + graceful pause, never fake)
+- Then C12: README jam section + final `npm run build` + submit branch URL
 
 ### Also owed by the user (not code)
 
