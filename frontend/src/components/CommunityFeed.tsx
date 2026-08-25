@@ -29,6 +29,14 @@ type Feed = {
   comments: FeedComment[];
 };
 
+type CanonFact = { label: string; fact: string; established_episode?: number };
+type CanonAnswer = {
+  question: string;
+  answer: string;
+  source: "canon";
+  facts: CanonFact[];
+};
+
 const MAX_EPISODE = 50;
 const DEFAULT_EPISODE = 30;
 
@@ -128,7 +136,12 @@ export default function CommunityFeed() {
         },
       });
     } catch (e) {
-      setLiveError(e instanceof Error ? e.message : String(e));
+      const raw = e instanceof Error ? e.message : String(e);
+      setLiveError(
+        /credits|conversion mode|can't classify|locked to|</i.test(raw)
+          ? "Live check is paused — Mnemo's Mind needs cognition credits. The seeded feed below uses cached verdicts."
+          : raw
+      );
     } finally {
       setChecking(false);
     }
@@ -333,6 +346,40 @@ function CommentCard({
       ? null
       : { label: v === "safe" ? "Safe" : v === "lore_question" ? "Answered from canon" : "Disputed" };
 
+  const [answer, setAnswer] = useState<CanonAnswer | null>(null);
+  const [asking, setAsking] = useState(false);
+  const [answerError, setAnswerError] = useState<string | null>(null);
+  const [showAnswer, setShowAnswer] = useState(false);
+
+  const askCanon = async () => {
+    if (asking) return;
+    if (answer) {
+      setShowAnswer(!showAnswer);
+      return;
+    }
+    setAsking(true);
+    setAnswerError(null);
+    try {
+      const res = await fetch("/api/canon/answer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: c.text }),
+      });
+      const body = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(
+          body?.error?.[0] ?? body?.error ?? `Canon lookup failed (${res.status})`
+        );
+      }
+      setAnswer(body as CanonAnswer);
+      setShowAnswer(true);
+    } catch (e) {
+      setAnswerError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setAsking(false);
+    }
+  };
+
   return (
     <motion.article
       className="rounded-2xl border border-white/8 bg-black/50 p-4 md:p-5"
@@ -355,11 +402,18 @@ function CommentCard({
             {c.time} · ♥ {c.likes} · {c.replies} replies
           </p>
         </div>
-        {chip && (
-          <span className={`${CHIP_BASE} ${CHIP_STYLE[v]}`}>
-            {chip.label}
-          </span>
-        )}
+        {chip &&
+          (v === "lore_question" ? (
+            <button
+              onClick={askCanon}
+              className={`${CHIP_BASE} ${CHIP_STYLE.lore_question} transition hover:brightness-125`}
+              aria-label="Get the canon answer"
+            >
+              {asking ? "Looking…" : "Answered from canon"}
+            </button>
+          ) : (
+            <span className={`${CHIP_BASE} ${CHIP_STYLE[v]}`}>{chip.label}</span>
+          ))}
       </div>
 
       {blurred ? (
@@ -368,17 +422,50 @@ function CommentCard({
         <p className="mt-3 text-sm leading-relaxed text-white/80">{c.text}</p>
       )}
 
+      {answerError && (
+        <p className="mt-3 rounded-lg border border-rose-400/20 bg-rose-400/5 px-3 py-2 text-xs text-rose-200/80">
+          {answerError}
+        </p>
+      )}
+
+      {v === "lore_question" && answer && showAnswer && (
+        <div className="mt-3 rounded-xl border border-cyan-400/15 bg-cyan-400/5 px-4 py-3">
+          <div className="flex items-center justify-between gap-2">
+            <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-cyan-200/80">
+              Answered from canon · source: canon
+            </p>
+            <button
+              onClick={() => setShowAnswer(false)}
+              className="font-mono text-[10px] text-white/40 hover:text-white"
+            >
+              hide
+            </button>
+          </div>
+          <p className="mt-1.5 text-sm leading-relaxed text-white/80">
+            {answer.answer}
+          </p>
+          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+            {answer.facts.map((f, i) => (
+              <span key={i} className="font-mono text-[10px] text-white/40">
+                {f.label}
+                {f.established_episode != null ? ` · ep ${f.established_episode}` : ""}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
       {(v !== "safe" || alwaysChip) && !blurred && (
         <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-white/5 pt-3">
-          <span className={`${CHIP_BASE} ${CHIP_STYLE[v]}`}>
-            {v === "spoiler"
-              ? `Spoils Episode ${c.moderation.spoils_episode}`
-              : v === "lore_question"
-                ? "Answered from canon"
+          {v !== "lore_question" && (
+            <span className={`${CHIP_BASE} ${CHIP_STYLE[v]}`}>
+              {v === "spoiler"
+                ? `Spoils Episode ${c.moderation.spoils_episode}`
                 : v === "contradiction"
                   ? "Disputed"
                   : "Safe"}
-          </span>
+            </span>
+          )}
           <p
             className="w-full text-xs leading-relaxed text-white/35 md:flex-1"
             title={c.moderation.reason}

@@ -4,7 +4,7 @@
 > be enough to resume cold. If they aren't, this doc is under-written — fix it
 > before ending your session.
 
-**Last updated**: 2026-08-25, end of C7
+**Last updated**: 2026-08-25, end of C8
 **Branch**: `jam/spoiler-guard` (do **not** commit jam work to `master`)
 **Last tag**: `jam-c7`
 
@@ -12,27 +12,18 @@
 
 ## NEXT ACTION
 
-**⚠️ USER ACTION FIRST: cognition balance is −16.3.** The Mind replies
-*"can't classify until credits land"* and `/moderation/check` 502s. Live
-beat 6/7 verification is **impossible until you top up cognition** on the
-Minds builder platform. Check with `minds cognition balance --mind
-5470503e-f36b-1410-8466-00039ce7df11`.
+**Checkpoint C9 — overnight digest (beat 9).** C8 shipped the no-credit beat 7:
+`POST /canon/answer` deterministically answers lore questions from `canon.json`
+(labelled `source: canon`, verified live: eyes→green ep1, Minthe→naiad,
+Hecate→best_friend ep9, kiss→ep25), the `Answered from canon` chip is now
+clickable and renders a cited answer block, and `/moderation/check` returns a
+friendly `503 kind:"cognition_empty"` when the Mind is out of credits.
 
-**Checkpoint C8 — lore-question answer path (beat 7) + composer polish.**
-C7 shipped the live composer on `/`: type a comment → `POST
-/api/moderation/check` with the slider's current episode → verdict renders as
-a feed card (blurred + `Spoils Episode {n} · you're on {ep}` + tap-to-reveal
-if spoiler, `Safe`/`Answered from canon`/`Disputed` chips otherwise). Also
-fixed a real beat-6 killer: Next's rewrite proxy defaulted to a **30s**
-timeout, which murders the 11–130s Mind call — `experimental.proxyTimeout:
-200_000` now set in `frontend/next.config.mjs`.
-
-- C8: make the `Answered from canon` chip a real affordance — a lore_question
-  verdict triggers a canon-answer call and renders the answer citing the
-  episode (needs cognition)
-- Verify the composer happy path live once cognition lands (it's unverified:
-  only the error path was provable at −16)
-- Then C9: autonomy worker + SSE + `/digest` (beat 9)
+- C9: `GET /digest` (aggregates `verdicts.json` — real cached Mind output:
+  verdict counts, worst spoiler, `generated_at`) + `GET /digest/stream` SSE
+  (simulated worker recomputes + broadcasts, honest "cached Mind verdicts"
+  label) + `/digest` page in the frontend (AMOLED) + Nav/Footer link
+- Then C10: `/mcp-service` page (move parked marketing sections), `/` stays the feed
 
 ### Also owed by the user (not code)
 
@@ -40,7 +31,7 @@ timeout, which murders the 11–130s Mind call — `experimental.proxyTimeout:
 - [x] Render auto-deploy confirmed: **ON, deploys on commit** → see landmines
 - [ ] Create the **draft BUIDL** with the form text below (editable until the
       deadline — removes deadline risk)
-- [ ] **Top up Mind cognition** (balance −16.3) — blocks all live beats
+- [ ] **Top up Mind cognition** (balance −16.3) — still required for live beats
 
 ---
 

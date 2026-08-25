@@ -48,6 +48,7 @@ import { checkContinuity, getActiveModel } from "./checker.js";
 import { runCheck } from "./check-handler.js";
 import { loadCanon, listSeries, seriesDir as resolveCanonDir } from "./resolve-canon.js";
 import { moderate, effectiveVerdict, type CachedVerdict, type ModerationResult } from "./moderation.js";
+import { answerFromCanon } from "./canon-answer.js";
 import type { CanonDoc } from "./types.js";
 
 dotenv.config();
@@ -1326,7 +1327,41 @@ app.post("/moderation/check", async (req: Request, res: Response) => {
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("[/moderation/check error]", message);
+    // The Mind pauses classification when cognition runs dry (metered fuel).
+    // Surface a friendly, explicit state instead of leaking the raw reply.
+    if (/credits?|conversion mode|top ?up|can't classify|locked to/i.test(message)) {
+      res.status(503).json({
+        error:
+          "Mnemo's Mind is out of cognition credits — live moderation is paused until credits land. The seeded feed below uses cached verdicts.",
+        kind: "cognition_empty",
+      });
+      return;
+    }
     res.status(502).json({ error: message });
+  }
+});
+
+// ─── POST /canon/answer  (ungated, demo) ────────────────────────────────────
+// Body: { question: string, series_id?: string }
+// Deterministic canon lookup — the no-credit beat-7 path. Answers a lore
+// question directly from the series canon (the same file the Mind is grounded
+// on) and labels itself source:"canon". Never fabricates Mind output.
+const canonAnswerSchema = z.object({
+  question: z.string().min(3).max(500),
+  series_id: z.string().regex(/^[a-z0-9_-]+$/).optional(),
+});
+app.post("/canon/answer", (req: Request, res: Response) => {
+  const parsed = canonAnswerSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.issues.map((i) => i.message) });
+    return;
+  }
+  const { question, series_id: seriesId } = parsed.data;
+  try {
+    res.json(answerFromCanon(loadCanon(seriesId ?? "lore-olympus"), question));
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    res.status(500).json({ error: message });
   }
 });
 
