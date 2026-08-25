@@ -47,6 +47,8 @@ export interface CharacterRecord {
   id: string;
   name: string;
   status: string;
+  role?: string;
+  species?: string;
   physical?: Record<string, AttributeRecord>;
   clothing_defaults?: Record<string, AttributeRecord>;
   abilities?: { name: string; description: string; established_episode: number; established_panel: number }[];

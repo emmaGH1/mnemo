@@ -4,7 +4,7 @@
 > be enough to resume cold. If they aren't, this doc is under-written — fix it
 > before ending your session.
 
-**Last updated**: 2026-08-25, end of C2
+**Last updated**: 2026-08-25, end of C3
 **Branch**: `jam/spoiler-guard` (do **not** commit jam work to `master`)
 **Last tag**: `jam-c2`
 
@@ -12,17 +12,26 @@
 
 ## NEXT ACTION
 
-**Checkpoint C3 — demo canon.** Hand-author the Lore Olympus canon across
-**episodes 1–50**, ~40 facts. The current `data/series/lore-olympus/canon.json`
-is a 3-episode fixture and cannot express "spoils ep 47 while you're on 30".
+**Checkpoint C4 — moderation engine, HARD GATE.** `POST /moderation/check`
+returning four verdicts, proven in a terminal by end of Aug 26.
 
-- Author fan comments yourself (never scrape real ones — third-party IP)
-- Canon is a *seeded demo fixture* — label it in the README
-- Output: `data/series/lore-olympus/canon.json` wide enough for C4's four
-  verdicts (`safe` / `spoiler` / `lore_question` / `contradiction`)
-- Don't sink 6–10h into scraping 50 episodes — hand-author
+- Input: `{ comment, reader_episode }` (and series id)
+- Output: `safe` / `spoiler` / `lore_question` / `contradiction`, with the
+  spoiler case carrying `spoils_episode` (the canon episode the comment reveals)
+  and the contradiction case carrying the canon fact it conflicts with
+- Architecture A holds: the Mind owns memory (wide canon re-seeded into the
+  `mnemo` conversation at C3). C4 calls the Mind per check; if live calls prove
+  slow/unreliable, cache real verdicts for the ~20 seeded comments (C5) and go
+  live only on beats 6–7
+- **Demo spoiler anchor:** `evt_017` (ep 47, Persephone moves into the
+  Underworld, Hades vows to protect her from Apollo). A seeded comment spoiling
+  that = "Spoils Episode 47 · you're on 30", and un-blurs at 50 (beat 8)
+- Canon: `data/series/lore-olympus/canon.json` v2 — 77 facts, 12 characters,
+  18 events, 6 locations, spanning episodes 1–50. `episodes.json` now lists 1–50
+- If `contradiction` detection proves fuzzy at C4, cut it and ship three
+  verdicts (roadmap gate)
 
-Then C4 (moderation engine, **HARD GATE**) — see `jam-roadmap.md`.
+Then C5 (verdict cache) — see `jam-roadmap.md`.
 
 ### Also owed by the user (not code)
 
@@ -34,6 +43,13 @@ Then C4 (moderation engine, **HARD GATE**) — see `jam-roadmap.md`.
 ---
 
 ## What just happened (this session)
+
+**C3 — demo canon, wide.** Hand-authored `data/series/lore-olympus/canon.json`
+v2: 77 facts — 12 characters (role/species fields added to `CharacterRecord` in
+`types.ts`), 18 events, 6 locations — spanning **episodes 1–50**.
+`episodes.json` expanded to 50. Re-seeded the Mind with the wide canon
+(architecture A) — fresh-process recall confirmed "Episode 47, panel 3, Hades"
+for the evt_017 spoiler anchor. `npm run build` + `test:continuity` green.
 
 **C2 — Minds handshake, gate passed.** Doctor green, mind `mnemo`
 (`5470503e-f36b-1410-8466-00039ce7df11`, minimax-m3, cognition ~160).
@@ -137,6 +153,10 @@ discipline section, and a **context-overload protocol**. Created
 - **Lore Olympus is third-party IP.** Label the canon a *seeded demo fixture*
   in the README, and **author the fan comments yourself** — never scrape real
   user comments.
+- **C3 canon is a seeded demo fixture**, not a transcript of the comic. Facts
+  are recognizably Lore Olympus but episode/panel numbers are hand-assigned for
+  the demo (e.g. the assault at ep 42, evt_017 at ep 47). Fine for the jam —
+  do not present it as page-accurate canon.
 - **Cognition is metered** and consumed by autonomous work too. Check balance
   before recording.
 - `data/series/*/pages/` is gitignored (large scraped images).
