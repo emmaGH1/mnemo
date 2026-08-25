@@ -1,5 +1,12 @@
 # Mnemo — Agent Instructions
 
+> **ACTIVE WORK: Creative Minds Jam #1 (Animoca Minds).**
+> Deadline **2026-08-28 15:59 UTC** (23:59 HKT). Track 3 — Moderation &
+> Community. Branch `jam/spoiler-guard`. **Read
+> [`docs/handover.md`](docs/handover.md) first**, then
+> [`docs/jam-roadmap.md`](docs/jam-roadmap.md) for the checkpoint plan.
+> `master` must stay deployable — the OKX listing is under review against it.
+
 ## Build commands
 
 ```bash
@@ -31,11 +38,73 @@ data/series/<id>/       # Per-series data (pages/, canons)
 ## Session resume
 
 Always read `.progress/checkpoint.json` first to know exactly where we stopped.
+During the jam, read [`docs/handover.md`](docs/handover.md) as well — it holds
+the live "what's next" state that checkpoint.json only logs after the fact.
+
+## Context-overload protocol
+
+Long sessions get expensive and start making mistakes. **Watch for these
+signals and start a fresh session when two or more appear:**
+
+- You re-read a file you already read this session (context has fallen out)
+- You reintroduce a bug that was already fixed
+- You contradict a decision recorded in `docs/handover.md`
+- Tool output gets truncated to files repeatedly
+- Responses slow noticeably or you start hedging on facts you established earlier
+- More than ~2 hours of wall-clock work in one thread
+
+**Hard rule: hand off at every tagged checkpoint.** The tags in
+`docs/jam-roadmap.md` (`jam-c2`, `jam-c4`, `jam-c7`, `jam-c9`) are natural
+session boundaries — one checkpoint per session keeps context small and cost
+low.
+
+**Before ending a session, always:**
+
+1. Commit and push all work (never hand off a dirty tree)
+2. Append a `6.xx` entry to `.progress/checkpoint.json`
+3. Update the "NEXT ACTION" block at the top of `docs/handover.md`
+4. Tag if the checkpoint calls for it
+
+A fresh session should need only `docs/handover.md` + `AGENTS.md` to resume.
+If it needs more than that, the handover doc is under-written — fix it.
 
 ## AGENTS.md conventions
 
 - Keep this file updated with new build/test commands as they're added
 - Update checkpoint.json after each completed step
+
+## Minds by Animoca (jam work)
+
+Env: `MINDS_BUILDER_API_KEY` in `.env` (never commit it). Requires Node 22+
+(currently on v24.16.0). Auth header is `X-Api-Key`; `X-Access-Key` is
+deprecated.
+
+```bash
+npx @animocabrands/minds-cli@latest doctor --pretty   # verify key + connectivity
+minds list --pretty                                   # mindId, name, model, species
+minds chat create --mind "<mindId>" --alias mnemo      # idempotent
+minds send mnemo "..." --wait --timeout 180000
+minds history mnemo --limit 20                         # senderType 1=human, 0=Mind
+minds cognition balance --mind "<mindId>"              # check before recording sessions
+minds bazaar search "<term>" --max 20                  # no API key needed
+```
+
+Server-side embedding uses `@animocabrands/minds-client-lib`
+(`createMindsClient`, `ensureConversation`, `sendMessage`, `waitForReply`,
+`getHistory`, `subscribeEvents`). Docs:
+<https://build.hellominds.ai/en/docs>.
+
+**Cognition is metered** — it is consumed by reasoning, tool use, *and*
+autonomous work. Cache Mind verdicts for seeded demo data; spend live calls
+only on the parts of the demo that must be live.
+
+## Git discipline (jam)
+
+- All jam work lands on `jam/spoiler-guard`, **never directly on `master`**.
+  Render auto-deploys the endpoint the OKX reviewer is testing.
+- One commit per checkpoint; tag the majors (`git tag jam-c4`).
+- Panic button: `git reset --hard jam-c7`.
+- Merge to `master` only at C12, and only after `npm run probe:okx` passes.
 
 ## OKX.AI listing re-push (gotchas)
 
@@ -56,8 +125,9 @@ Live state, full re-push commands, and the canonical marketing copy:
 ## Probes (re-verify before any resubmit)
 
 ```bash
-npm run probe:paid      # Full paid tools/call path on Railway — THE canary
-npm run probe:replay    # 402 → sign → 200 replay (no Gemini call)
+npm run probe:paid      # Full paid tools/call path on Render — THE canary
+npm run probe:okx       # Reviewer-identical 2-phase GET+POST replay
+npm run probe:replay    # 402 → sign → 200 replay (no AI call)
 npm run test:payment    # x402 gate tests (A: unpaid→402, B: direct, C: real paid)
 ```
 
