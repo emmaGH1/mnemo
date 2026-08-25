@@ -101,10 +101,14 @@ only on the parts of the demo that must be live.
 ## Git discipline (jam)
 
 - All jam work lands on `jam/spoiler-guard`, **never directly on `master`**.
-  Render auto-deploys the endpoint the OKX reviewer is testing.
+  Render **auto-deploys `master` on every commit** — and a merge rebuilds, so a
+  `tsc` failure takes the OKX reviewer's `/mcp` endpoint down. Zero commits to
+  `master` until after the jam deadline.
 - One commit per checkpoint; tag the majors (`git tag jam-c4`).
+- `npm run build` must pass before any commit that touches `src/`.
 - Panic button: `git reset --hard jam-c7`.
-- Merge to `master` only at C12, and only after `npm run probe:okx` passes.
+- Submit the branch URL, not a merge. Merge to `master` only after the OKX
+  review closes and `npm run probe:okx` is green.
 
 ## OKX.AI listing re-push (gotchas)
 

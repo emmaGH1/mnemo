@@ -78,7 +78,7 @@ Each checkpoint = one commit. Tagged ones are session boundaries and revert poin
 | **C9** | Autonomy: background worker + SSE + unprompted digest, `/digest` | `jam-c9` | ⬜ |
 | **C10** | Copy/IA pass: demo to `/`, marketing to `/mcp-service` | — | ⬜ |
 | **C11** | Video: script → VO → capture → CapCut → captions | `jam-c11` | ⬜ |
-| **C12** | README + diagram, `probe:okx`, merge to master, **submit** | `jam-submit` | ⬜ |
+| **C12** | README + diagram, **submit branch URL** (no master merge) | `jam-submit` | ⬜ |
 
 ### Day allocation (realistic solo hours ≈ 35–40, not 84)
 
@@ -101,8 +101,16 @@ Each checkpoint = one commit. Tagged ones are session boundaries and revert poin
   `contradiction`) proven in a terminal by end of Aug 26. If not, **drop
   `contradiction`** and ship three.
 - **End of Aug 27 AM** — beats 1–8 clickable. Ugly is acceptable, broken is not.
-- **C12** — if `probe:okx` fails, do **not** merge. Submit the branch URL and
-  merge after the OKX review closes.
+- **Build gate, every checkpoint touching `src/`** — `npm run build` (tsc) must
+  pass before committing. A broken build is what would kill the Render deploy
+  later, and it's cheapest to catch immediately.
+- **C12** — **do not merge to `master`.** Render auto-deploys `master` on every
+  commit and a failed rebuild takes `/mcp` down while OKX listing #6211 is under
+  review. Submit the branch URL:
+  `https://github.com/emmaGH1/mnemo/tree/jam/spoiler-guard`.
+  Merge after the OKX review closes, with `probe:okx` green.
+  **Zero commits to `master` until after the deadline** — even a README-only
+  commit triggers a rebuild.
 
 ---
 

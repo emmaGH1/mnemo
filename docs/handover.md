@@ -35,10 +35,10 @@ Then C3 (demo canon) — see [`jam-roadmap.md`](jam-roadmap.md).
 
 ### Also owed by the user (not code)
 
-- [ ] Register on DoraHacks + create the **draft BUIDL** with the form text below
-      (editable until deadline — removes deadline risk)
-- [ ] Check Render → service → Settings → **Auto-Deploy branch**. Report back;
-      it decides how safe the C12 merge is.
+- [x] Registered on DoraHacks
+- [x] Render auto-deploy confirmed: **ON, deploys on commit** → see landmines
+- [ ] Create the **draft BUIDL** with the form text below (editable until the
+      deadline — removes deadline risk)
 
 ---
 
@@ -117,9 +117,15 @@ discipline section, and a **context-overload protocol**. Created
 
 ## Known landmines
 
-- **`master` is deployed.** Render serves the `/mcp` endpoint the OKX reviewer
-  is testing (listing #6211, `approvalDisplayStatus: 2`, under review since
-  2026-08-21). Jam work on `master` can break it mid-review.
+- **`master` auto-deploys to Render on every commit.** Confirmed 2026-08-25.
+  Render serves the `/mcp` endpoint the OKX reviewer is testing (listing #6211,
+  `approvalDisplayStatus: 2`, under review since 2026-08-21). A merge does not
+  just redeploy — it **rebuilds**. C2+ adds `@animocabrands/minds-client-lib`
+  and new TS files; if `tsc` fails on Render the deploy fails and `/mcp` goes
+  **down** mid-review. **Therefore: do not merge to `master` before the
+  submission deadline.** Submit the `jam/spoiler-guard` branch URL — DoraHacks
+  accepts any repo/branch link, and a judge reading a feature branch is a
+  non-issue. Merge after the OKX review closes, with `npm run probe:okx` green.
 - **Render cold start ≈ 23s**, warm ≈ 0.7s. Free tier spins down after ~15min
   idle. Irrelevant for the jam demo (local), relevant for the OKX reviewer.
 - **Existing canon is too thin for the demo.** `data/canon.json` is a
