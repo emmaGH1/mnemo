@@ -28,7 +28,28 @@ export async function getMinds(): Promise<MindsClient> {
   return _client;
 }
 
-/** Ensure a conversation, send a message, wait for the Mind's reply text. */
+/** Fingerprint of the last reply consumed per alias — baseline for the next wait. */
+const lastReplyFingerprint = new Map<string, string>();
+
+/** Max of two fingerprints by their leading timestamp. */
+function newerFingerprint(a: string | undefined, b: string | undefined): string | undefined {
+  if (!a) return b;
+  if (!b) return a;
+  const na = Number(a.split("_")[0]);
+  const nb = Number(b.split("_")[0]);
+  return na >= nb ? a : b;
+}
+
+/**
+ * Ensure a conversation, send a message, wait for the Mind's reply text.
+ *
+ * Reply-matching baseline: the max of (a) the last reply we consumed on this
+ * alias and (b) the latest history fingerprint. A history-only snapshot misses
+ * a reply that arrived via SSE but hasn't been committed to history yet, and
+ * the SSE stream can re-deliver that stale event on the next wait — which
+ * produced cross-turn replies during the C5 cache run. Using the last consumed
+ * reply's own fingerprint rejects those re-deliveries.
+ */
 export async function tell(
   alias: string,
   mindId: string,
@@ -37,18 +58,20 @@ export async function tell(
 ): Promise<string> {
   const minds = await getMinds();
   await minds.ensureConversation(alias, mindId);
-  // Snapshot the history fingerprint BEFORE sending so waitForReply only
-  // accepts a reply newer than this turn (prevents cross-turn stale matches).
-  const before = await minds.getLatestHistoryFingerprint(alias);
+  const historyBaseline = await minds.getLatestHistoryFingerprint(alias);
+  const afterFingerprint = newerFingerprint(lastReplyFingerprint.get(alias), historyBaseline);
   await minds.sendMessage({ alias, messageText: message });
   const outcome = await minds.waitForReply({
     alias,
     timeoutMs,
-    afterFingerprint: before,
+    afterFingerprint,
     sentMessageText: message,
   });
   if (outcome.timedOut) {
     throw new Error(`Minds reply timed out after ${timeoutMs}ms (alias "${alias}")`);
+  }
+  if (outcome.reply.fingerprint) {
+    lastReplyFingerprint.set(alias, outcome.reply.fingerprint);
   }
   return outcome.reply.messageText ?? "";
 }

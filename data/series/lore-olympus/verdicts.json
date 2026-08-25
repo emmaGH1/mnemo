@@ -1,0 +1,131 @@
+{
+  "series_id": "lore-olympus",
+  "computed_at_reader_episode": 1,
+  "verdicts": [
+    {
+      "comment_id": "c01",
+      "computed_at_reader_episode": 1,
+      "verdict": "safe",
+      "reason": "Pure aesthetic opinion about the art; no canon facts revealed, no question, no contradiction. Reader on ep 1 is unaffected."
+    },
+    {
+      "comment_id": "c02",
+      "computed_at_reader_episode": 1,
+      "verdict": "safe",
+      "reason": "Hades' blue flames ability is established at ep 1, which equals the reader's current position. Comment is a positive aesthetic reaction about his established ability. 'Powers up' is vague and doesn't reveal any specific future event. Not a question, not a contradiction."
+    },
+    {
+      "comment_id": "c03",
+      "computed_at_reader_episode": 1,
+      "verdict": "safe",
+      "reason": "Meta reader comment ('finally caught up, this series has me in a chokehold') expresses emotional engagement with the series but reveals no canon facts, asks no question, and contradicts nothing."
+    },
+    {
+      "comment_id": "c04",
+      "computed_at_reader_episode": 1,
+      "verdict": "safe",
+      "reason": "Pure wish/speculation ('i hope we see more of hecate') expresses desire to see more of an existing character but states no canon fact, asks no question, contradicts nothing. Speculation and 'I wish' are not contradictions, and a comment cannot spoil a fact it does not state."
+    },
+    {
+      "comment_id": "c05",
+      "computed_at_reader_episode": 1,
+      "verdict": "spoiler",
+      "reason": "Comment explicitly references 'the makeover scene,' which is established at ep 13 - after the reader's ep 1. It also reveals Eros's friend/wingman role with Persephone, also established at ep 13.",
+      "spoils_episode": 13
+    },
+    {
+      "comment_id": "c06",
+      "computed_at_reader_episode": 1,
+      "verdict": "safe",
+      "reason": "Pure reader opinion/reaction about Minthe ('so messy,' 'i cant with her') expresses emotional engagement but reveals no canon fact, asks no question, contradicts nothing. Minthe's existence is established at ep 1 = reader's current position; no post-ep-1 fact is revealed."
+    },
+    {
+      "comment_id": "c07",
+      "computed_at_reader_episode": 1,
+      "verdict": "safe",
+      "reason": "Pure reader emotional reaction about Hades and Persephone's perceived dynamic/tension. No specific post-ep-1 canon fact is revealed - 'dynamic' and 'tension' are general emotional descriptors, not events. Both characters exist at ep 1 (the reader's current position); the comment never states they meet, kiss, date, or any other specific event from later episodes. Not a question, not a contradiction."
+    },
+    {
+      "comment_id": "c08",
+      "computed_at_reader_episode": 1,
+      "verdict": "safe",
+      "reason": "Pure reader emotional reaction about Zeus ('chaos gremlin,' 'i love him') - no canon fact revealed, no question, no contradiction. Zeus is established at ep 1 = reader's current position; the comment never references any specific post-ep-1 event."
+    },
+    {
+      "comment_id": "c09",
+      "computed_at_reader_episode": 1,
+      "verdict": "safe",
+      "reason": "Pure reader emotional reaction and reading-status disclosure. 'Just started reading' is the reader's own position (ep 1), not a canon fact. 'Persephone is adorable' is a subjective opinion with no canon fact disclosed. No specific post-ep-1 event is referenced, no question is asked, no contradiction with the provided canon."
+    },
+    {
+      "comment_id": "c10",
+      "computed_at_reader_episode": 1,
+      "verdict": "safe",
+      "reason": "Pure reader emotional reaction about Demeter's character ('most overprotective mom,' 'girl let her live'). Demeter's mother relationship with Persephone is established at ep 1 = reader's current position. The comment expresses general character opinion without citing any specific post-ep-1 event (e.g., it does not reference Demeter forbidding the Underworld at ep 11). No question, no contradiction, no spoiler fact disclosed."
+    },
+    {
+      "comment_id": "c11",
+      "computed_at_reader_episode": 1,
+      "verdict": "spoiler",
+      "reason": "Comment reveals two facts established at ep 47: Hades swore to protect Persephone from Apollo, and Hades took her in (Persephone moved into the Underworld). Both are post-ep-1, so this is a spoiler for a reader on ep 1. 'im SOBBING' is reader emotional reaction, not a question or contradiction.",
+      "spoils_episode": 47
+    },
+    {
+      "comment_id": "c12",
+      "computed_at_reader_episode": 1,
+      "verdict": "spoiler",
+      "reason": "Comment references Apollo doing something at Persephone's apartment, which matches the ep 42 event 'Apollo assaults Persephone: Apollo forces himself on Persephone in her apartment.' That event is established at ep 42, after the reader's current ep 1, making this a spoiler. The apartment location match is exact. 'i need therapy' is reader emotional reaction, not a question or contradiction.",
+      "spoils_episode": 42
+    },
+    {
+      "comment_id": "c13",
+      "computed_at_reader_episode": 1,
+      "verdict": "spoiler",
+      "reason": "Comment references the 'act of wrath' concept, established at ep 38 (Hades glimpses it) and fully accepted at ep 49 (Hades accepts it). The reader's implication that the act of wrath is 'why she can't go back' points to ep 49, where Hades accepts the act of wrath - meaning it was the hidden barrier to their reunion. Both referenced facts are post-ep-1, so this is a spoiler for a reader on ep 1. 'that reveal broke me' is reader emotional reaction, not a question or contradiction.",
+      "spoils_episode": 49
+    },
+    {
+      "comment_id": "c14",
+      "computed_at_reader_episode": 1,
+      "verdict": "spoiler",
+      "reason": "Comment references Hades and Persephone's first kiss, established at ep 25 per canon. Reader on ep 1 has not yet reached this episode, making this a spoiler. 'they finally did it' is reader emotional reaction, not a question or contradiction.",
+      "spoils_episode": 25
+    },
+    {
+      "comment_id": "c15",
+      "computed_at_reader_episode": 1,
+      "verdict": "lore_question",
+      "reason": "Explicit factual question about Persephone's eye color, directly answerable from canon (green, established ep 1). Asking isn't revealing, so not spoiler; no contradiction; not safe because it specifically requests a canon fact. Same question pattern as cycles 27/34/41, all classified lore_question identically."
+    },
+    {
+      "comment_id": "c16",
+      "computed_at_reader_episode": 1,
+      "verdict": "lore_question",
+      "reason": "Two factual questions about Hecate's identity and her relationship to Hades. Canon describes Hecate as a witch and Hades' second-in-command at Underworld Corp; her only listed relationship to Hades is best_friend (established ep 9), with no family relationship listed in canon. Asking isn't revealing, so not spoiler; no fact stated in the comment itself, no contradiction; not safe because it explicitly requests canon facts."
+    },
+    {
+      "comment_id": "c17",
+      "computed_at_reader_episode": 1,
+      "verdict": "lore_question",
+      "reason": "Explicit factual question about Minthe's species, directly answerable from canon (river nymph/naiad, established ep 1). Asking isn't revealing, so not spoiler; no fact stated in the comment itself, no contradiction; not safe because it specifically requests a canon fact."
+    },
+    {
+      "comment_id": "c18",
+      "computed_at_reader_episode": 1,
+      "verdict": "contradiction",
+      "reason": "Comment claims Minthe and Hades are 'literally endgame' and will get married. Canon establishes Hades' love_interest is Persephone (ep 2), Minthe/Hades are on_and_off (ep 2) and toxic (ep 3), and Hades breaks up with Minthe at ep 30. No marriage event between Minthe and Hades exists anywhere in canon. The 'literally endgame' claim directly contradicts established canon. 'gonna get married i can feel it' is speculative framing, but the definitive endgame claim conflicts with canon. Same pattern as cycles 36 and 42 (minthe-married-contradiction)."
+    },
+    {
+      "comment_id": "c19",
+      "computed_at_reader_episode": 1,
+      "verdict": "contradiction",
+      "reason": "Comment claims Demeter is 'totally supportive' and 'fine with' Persephone living in the Underworld. Canon establishes Demeter forbids the Underworld at ep 11 - she arrives in Olympus furious and forbids Persephone from setting foot there. The 'supportive / fine with it' claim directly conflicts with canon. Not a spoiler because the comment is making an incorrect claim, not revealing any future canon fact. Same pattern as cycles 28, 36, 43 (demeter-supports-contradiction)."
+    },
+    {
+      "comment_id": "c20",
+      "computed_at_reader_episode": 1,
+      "verdict": "safe",
+      "reason": "Pure aesthetic opinion about the chapter's color palette and appreciation for the colorist. No canon facts revealed, no lore question, no contradiction with established canon. Reader's current position (ep 1) is unaffected."
+    }
+  ]
+}

@@ -18,6 +18,8 @@
     "demo:3flags": "powershell -ExecutionPolicy Bypass -File scripts/demo-3-flags.ps1",
     "minds:gate": "tsx scripts/minds-gate.ts",
     "moderation:prove": "tsx scripts/minds-moderation-prove.ts",
+    "moderation:cache": "tsx scripts/minds-verdict-cache.ts",
+    "moderation:check-cache": "tsx scripts/check-moderation-cache.ts",
     "build": "tsc",
     "start": "node dist/server.js"
   },

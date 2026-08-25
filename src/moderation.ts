@@ -25,6 +25,50 @@ export interface ModerationResult {
   reason: string;
 }
 
+/** One cached verdict record — real Mind output, computed at a fixed baseline reader episode. */
+export interface CachedVerdict {
+  comment_id: string;
+  computed_at_reader_episode: number;
+  verdict: ModerationVerdict;
+  spoils_episode?: number;
+  reason: string;
+}
+
+/**
+ * Derive the verdict for a reader at ANY episode from a cached verdict.
+ *
+ * The Mind classified the comment at `computed_at_reader_episode` (baseline 1,
+ * the strictest case). The only progress-dependent branch is spoiler: a comment
+ * is a spoiler for this reader iff the latest revealed episode is AFTER where
+ * the reader is. Everything else (safe / lore_question / contradiction) is
+ * reader-independent. This is the beat-8 machinery: the SAME cached comment
+ * blurs at episode 30 and un-blurs at 50.
+ */
+export function effectiveVerdict(
+  cached: CachedVerdict,
+  readerEpisode: number
+): ModerationResult {
+  if (
+    cached.verdict === "spoiler" &&
+    cached.spoils_episode != null &&
+    cached.spoils_episode > readerEpisode
+  ) {
+    return {
+      verdict: "spoiler",
+      spoils_episode: cached.spoils_episode,
+      reason: cached.reason,
+    };
+  }
+  if (cached.verdict === "spoiler") {
+    return { verdict: "safe", reason: cached.reason };
+  }
+  const result: ModerationResult = { verdict: cached.verdict, reason: cached.reason };
+  if (cached.spoils_episode != null) {
+    result.spoils_episode = cached.spoils_episode;
+  }
+  return result;
+}
+
 const VERDICTS: ModerationVerdict[] = [
   "safe",
   "spoiler",

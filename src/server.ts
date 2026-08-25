@@ -47,7 +47,7 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { checkContinuity, getActiveModel } from "./checker.js";
 import { runCheck } from "./check-handler.js";
 import { loadCanon, listSeries, seriesDir as resolveCanonDir } from "./resolve-canon.js";
-import { moderate } from "./moderation.js";
+import { moderate, effectiveVerdict, type CachedVerdict, type ModerationResult } from "./moderation.js";
 import type { CanonDoc } from "./types.js";
 
 dotenv.config();
@@ -1328,6 +1328,40 @@ app.post("/moderation/check", async (req: Request, res: Response) => {
     console.error("[/moderation/check error]", message);
     res.status(502).json({ error: message });
   }
+});
+
+// ─── GET /community/feed  (ungated, demo) ────────────────────────────────────
+// Returns the seeded comments each merged with the verdict effective for the
+// given reader_episode (instant — reads the cached Mind verdicts, no live call).
+// This is the beat-4/beat-8 surface: a comment blurs iff its verdict is
+// "spoiler" for this reader.
+app.get("/community/feed", (req: Request, res: Response) => {
+  const seriesId = (req.query.series_id as string) || "lore-olympus";
+  if (!/^[a-z0-9_-]+$/.test(seriesId)) {
+    res.status(400).json({ error: "invalid series_id" });
+    return;
+  }
+  const readerEpisode = Math.max(1, Number(req.query.reader_episode) || 1);
+  const dir = resolveCanonDir(seriesId);
+  const commentsPath = path.join(dir, "seed-comments.json");
+  const verdictsPath = path.join(dir, "verdicts.json");
+  if (!fs.existsSync(commentsPath) || !fs.existsSync(verdictsPath)) {
+    res.status(404).json({ error: `No seeded feed for series "${seriesId}"` });
+    return;
+  }
+  const comments = JSON.parse(fs.readFileSync(commentsPath, "utf-8")).comments as {
+    id: string;
+    [key: string]: unknown;
+  }[];
+  const verdicts = JSON.parse(fs.readFileSync(verdictsPath, "utf-8")).verdicts as CachedVerdict[];
+  const feed = comments.map((c) => {
+    const cached = verdicts.find((v) => v.comment_id === c.id);
+    const moderation: ModerationResult = cached
+      ? effectiveVerdict(cached, readerEpisode)
+      : { verdict: "safe", reason: "uncached" };
+    return { ...c, moderation, spoils_episode: moderation.spoils_episode ?? null };
+  });
+  res.json({ series_id: seriesId, reader_episode: readerEpisode, comments: feed });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

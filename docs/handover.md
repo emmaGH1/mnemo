@@ -4,7 +4,7 @@
 > be enough to resume cold. If they aren't, this doc is under-written — fix it
 > before ending your session.
 
-**Last updated**: 2026-08-25, end of C4
+**Last updated**: 2026-08-25, end of C5
 **Branch**: `jam/spoiler-guard` (do **not** commit jam work to `master`)
 **Last tag**: `jam-c4`
 
@@ -12,21 +12,21 @@
 
 ## NEXT ACTION
 
-**Checkpoint C5 — verdict cache.** The ~20 seeded feed comments need instant
-load (Mind calls take 11–130s — fine for beats 6–7 on camera, too slow for
-rendering the feed).
+**Checkpoint C6 — `/community` page.** The seeded feed is ready server-side
+(`GET /community/feed?reader_episode=N` returns the 20 comments each merged
+with their effective verdict). Now the Next.js page:
 
-- Author the ~20 seeded comments yourself (never scrape real ones), spread
-  across verdicts: mostly `safe`, 3–4 `spoiler` (one = the ep-47 anchor),
-  2 `lore_question`, 1–2 `contradiction`
-- Script runs the **real Mind** over each comment → caches
-  `{ verdict, spoils_episode?, reason }` to
-  `data/series/lore-olympus/verdicts.json` (never hardcode fake verdicts —
-  cached real output is the documented rule)
-- Frontend reads the cache; `/moderation/check` stays live for beats 6–7
-- Keep comments varied: timestamps, avatars, lengths, one typo (roadmap)
+- `/` becomes the community feed (beats 2–8). Keep AMOLED design system
+- Progress selector (default **Episode 30**) → re-fetch feed at that episode
+- Comments with `moderation.verdict === "spoiler"` render **blurred** with a
+  badge `Spoils Episode {spoils_episode} · you're on {reader_episode}`;
+  click-to-reveal un-blurs (consent, not censorship)
+- **Beat 8 must work:** flip the selector to 50 → the c11 comment un-blurs
+- Lore questions render an "answered from canon" affordance (beat 7 hook),
+  contradictions render a "disputed" tag
+- `frontend/` project; API rewrites to localhost:3000 (start both servers)
 
-Then C6 (`/community` page: seeded feed + blur/reveal).
+Then C7 (progress selector → re-evaluation; beat 8 is the money shot).
 
 ### Also owed by the user (not code)
 
@@ -38,6 +38,26 @@ Then C6 (`/community` page: seeded feed + blur/reveal).
 ---
 
 ## What just happened (this session)
+
+**C5 — verdict cache, real Mind output.** Authored
+`data/series/lore-olympus/seed-comments.json` — 20 authored fan comments with
+feed metadata (avatars, relative timestamps, likes, one typo c05 "eres").
+Ran the **real Mind** over all 20 at `reader_episode=1` (strictest baseline)
+→ `verdicts.json`: **10 safe / 5 spoiler / 3 lore_question / 2 contradiction**.
+Spoiler spread: c11[47] ⭐ anchor, c12[42] Apollo, c13[49] act of wrath,
+c14[25] first kiss, c05[13] makeover. Added `effectiveVerdict(cached, reader)`:
+the ONLY progress-dependent branch is spoiler (blur iff
+`spoils_episode > reader_episode`) — the beat-8 machinery. Two fixes during
+the run: (1) **stale-reply corruption found + fixed at the root** — c20 was
+cached with a verbatim copy of c19's reply. `tell()` now uses the max of (last
+consumed reply fingerprint per alias, history snapshot) as `afterFingerprint`;
+a history-only snapshot misses a reply that arrived via SSE but isn't in
+history yet, and the SSE stream re-delivers that stale event on the next wait.
+(2) c20 regenerated → `safe`. `npm run moderation:check-cache` asserts all 20
+cached + 10 progress transitions (c11 blurs@30 → safe@50). New
+`GET /community/feed?reader_episode=N` merges comments + effective verdicts
+(instant, no live call) — verified: 20 comments, 3 blurred@30, 0 blurred@50.
+Killed a stale `dist/server.js` leftover hogging port 3000.
 
 **C4 — moderation engine, HARD GATE PASSED.** `src/moderation.ts`:
 `moderate(comment, readerEpisode, seriesId?)` → the Mind classifies each
