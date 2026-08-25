@@ -43,6 +43,9 @@ typechain-types
 # Scraped page images (too large for git)
 data/series/*/pages/
 
+# Local agent workspace (vendored node_modules, not project config)
+.opencode/
+
 # IDEs & System Files
 .DS_Store
 Thumbs.db
