@@ -1,9 +1,5 @@
 import Nav from "@/components/Nav";
-import Hero from "@/components/Hero";
-import Showcase from "@/components/Showcase";
-import VideoCards from "@/components/VideoCards";
-import HowToUse from "@/components/HowToUse";
-import Pricing from "@/components/Pricing";
+import CommunityFeed from "@/components/CommunityFeed";
 import Footer from "@/components/Footer";
 
 export default function Home() {
@@ -11,11 +7,7 @@ export default function Home() {
     <>
       <Nav />
       <main className="relative overflow-x-hidden">
-        <Hero />
-        <Showcase />
-        <VideoCards />
-        <HowToUse />
-        <Pricing />
+        <CommunityFeed />
       </main>
       <Footer />
     </>

@@ -8,9 +8,7 @@ import Reveal from "./ui/Reveal";
 import { OKX_AGENT_URL } from "@/config";
 
 const product: [string, string][] = [
-  ["How to use", "#use"],
-  ["In action", "#watch"],
-  ["Pricing", "#pricing"],
+  ["Community feed", "#feed"],
 ];
 
 const connect: [string, string][] = [

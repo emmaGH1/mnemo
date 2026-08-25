@@ -9,9 +9,7 @@ import MobileMenu from "./MobileMenu";
 import { OKX_AGENT_URL } from "@/config";
 
 const links = [
-  { label: "How to use", href: "#use" },
-  { label: "In action", href: "#watch" },
-  { label: "Pricing", href: "#pricing" },
+  { label: "Community feed", href: "#feed" },
 ];
 
 export default function Nav() {

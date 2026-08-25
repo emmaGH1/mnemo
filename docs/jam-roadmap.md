@@ -72,7 +72,7 @@ Each checkpoint = one commit. Tagged ones are session boundaries and revert poin
 | **C3** | Demo canon: ~40 facts hand-authored across **episodes 1–50** → **77 facts, 12 chars, 18 events, 6 locs** | — | ✅ done |
 | **C4** | Moderation engine: `POST /moderation/check` → 4 verdicts. **HARD GATE** → **PASSED live (7-case proof, beat-8 logic verified)** | `jam-c4` | ✅ done |
 | **C5** | Verdict cache for the ~20 seeded comments (real Mind output, cached) → **20 cached, check-moderation-cache green, feed endpoint live** | — | ✅ done |
-| **C6** | `/community` page: seeded feed + blur/reveal | — | ⬜ |
+| **C6** | `/community` page: seeded feed + blur/reveal → **`/` is now the feed — slider + blur/reveal + chips verified live, beat 8 works** | — | ✅ done |
 | **C7** | Progress selector → re-evaluation. **Beat 8 works** | `jam-c7` | ⬜ |
 | **C8** | Live comment box (beat 6) + lore-question path (beat 7) | — | ⬜ |
 | **C9** | Autonomy: background worker + SSE + unprompted digest, `/digest` | `jam-c9` | ⬜ |
