@@ -18,6 +18,7 @@ build
 express-log.txt
 .tmp-payment-required.b64
 *.b64
+server-c4-test*.log
 
 # Environment Variables
 .env
