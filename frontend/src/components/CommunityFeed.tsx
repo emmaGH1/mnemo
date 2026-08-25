@@ -35,7 +35,8 @@ const DEFAULT_EPISODE = 30;
 const ease = [0.32, 0.72, 0, 1] as const;
 
 const CHIP_BASE = "rounded-full border px-2.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.14em]";
-const CHIP_STYLE: Record<Exclude<Verdict, "safe">, string> = {
+const CHIP_STYLE: Record<Verdict, string> = {
+  safe: "border-white/20 bg-white/5 text-white/70",
   spoiler: "border-rose-400/30 bg-rose-400/10 text-rose-200",
   lore_question: "border-cyan-400/30 bg-cyan-400/10 text-cyan-200",
   contradiction: "border-amber-400/30 bg-amber-400/10 text-amber-200",
@@ -47,6 +48,13 @@ export default function CommunityFeed() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [revealed, setRevealed] = useState<Set<string>>(new Set());
+  const [draft, setDraft] = useState("");
+  const [checking, setChecking] = useState(false);
+  const [liveResult, setLiveResult] = useState<{
+    comment: FeedComment;
+    reader_episode: number;
+  } | null>(null);
+  const [liveError, setLiveError] = useState<string | null>(null);
   const reqId = useRef(0);
   const committedEpisode = useRef(DEFAULT_EPISODE);
 
@@ -82,6 +90,49 @@ export default function CommunityFeed() {
   };
 
   const reveal = (id: string) => setRevealed((prev) => new Set(prev).add(id));
+
+  const submit = async () => {
+    const text = draft.trim();
+    if (!text || checking) return;
+    setChecking(true);
+    setLiveError(null);
+    setLiveResult(null);
+    try {
+      const res = await fetch("/api/moderation/check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ comment: text, reader_episode: episode }),
+      });
+      const body = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(
+          body?.error?.[0] ?? body?.error ?? `Moderation failed (${res.status})`
+        );
+      }
+      setLiveResult({
+        reader_episode: body.reader_episode as number,
+        comment: {
+          id: `live-${Date.now()}`,
+          author: "you",
+          initials: "yo",
+          color: "#ffffff",
+          text: body.comment as string,
+          time: "just now",
+          likes: 0,
+          replies: 0,
+          moderation: {
+            verdict: body.verdict,
+            spoils_episode: body.spoils_episode,
+            reason: body.reason,
+          },
+        },
+      });
+    } catch (e) {
+      setLiveError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setChecking(false);
+    }
+  };
 
   return (
     <>
@@ -149,6 +200,70 @@ export default function CommunityFeed() {
         </div>
       </header>
 
+      <section className="mx-auto max-w-3xl px-5 pb-10 md:px-8">
+        <div className="rounded-2xl border border-white/10 bg-black/60 p-5 md:p-6">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="font-mono-statement text-[11px] uppercase tracking-[0.18em] text-white/40">
+              Live check · the Mind judges it
+            </p>
+            <span className="flex items-center gap-1.5 font-mono text-[10px] text-white/40">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white/50" />
+              as someone on Episode {episode}
+            </span>
+          </div>
+          <textarea
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            rows={2}
+            placeholder="Type a comment — try a spoiler, or ask a lore question…"
+            className="mt-4 w-full resize-none rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm leading-relaxed text-white placeholder:text-white/30 focus:border-white/25"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) submit();
+            }}
+          />
+          <div className="mt-3 flex items-center justify-between gap-3">
+            <p
+              className={`font-mono text-[11px] text-white/35 ${
+                checking ? "" : "opacity-0"
+              }`}
+            >
+              <span className="animate-pulse">
+                the Mind is reading this against canon…
+              </span>
+            </p>
+            <button
+              onClick={submit}
+              disabled={checking || !draft.trim()}
+              className="rounded-full bg-white px-5 py-2 text-sm font-medium text-black transition-colors duration-200 hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {checking ? "Moderating…" : "Post"}
+            </button>
+          </div>
+
+          {liveError && (
+            <p className="mt-3 rounded-lg border border-rose-400/20 bg-rose-400/5 px-4 py-2 text-xs text-rose-200/80">
+              {liveError}
+            </p>
+          )}
+
+          {liveResult && (
+            <div className="mt-4">
+              <CommentCard
+                comment={liveResult.comment}
+                episode={liveResult.reader_episode}
+                blurred={
+                  liveResult.comment.moderation.verdict === "spoiler" &&
+                  !revealed.has(liveResult.comment.id)
+                }
+                onReveal={() => reveal(liveResult.comment.id)}
+                index={0}
+                alwaysChip
+              />
+            </div>
+          )}
+        </div>
+      </section>
+
       <main id="feed" className="mx-auto max-w-3xl px-5 pb-28 md:px-8">
         <div className="mb-6 flex items-center justify-between">
           <p className="font-mono-statement text-[11px] uppercase tracking-[0.18em] text-white/40">
@@ -203,18 +318,20 @@ function CommentCard({
   blurred,
   onReveal,
   index,
+  alwaysChip = false,
 }: {
   comment: FeedComment;
   episode: number;
   blurred: boolean;
   onReveal: () => void;
   index: number;
+  alwaysChip?: boolean;
 }) {
   const v = c.moderation.verdict;
   const chip =
-    v === "safe" || v === "spoiler"
+    v === "spoiler" || (v === "safe" && !alwaysChip)
       ? null
-      : { label: v === "lore_question" ? "Answered from canon" : "Disputed" };
+      : { label: v === "safe" ? "Safe" : v === "lore_question" ? "Answered from canon" : "Disputed" };
 
   return (
     <motion.article
@@ -239,7 +356,7 @@ function CommentCard({
           </p>
         </div>
         {chip && (
-          <span className={`${CHIP_BASE} ${CHIP_STYLE[v as Exclude<Verdict, "safe" | "spoiler">]}`}>
+          <span className={`${CHIP_BASE} ${CHIP_STYLE[v]}`}>
             {chip.label}
           </span>
         )}
@@ -251,14 +368,16 @@ function CommentCard({
         <p className="mt-3 text-sm leading-relaxed text-white/80">{c.text}</p>
       )}
 
-      {v !== "safe" && !blurred && (
+      {(v !== "safe" || alwaysChip) && !blurred && (
         <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-white/5 pt-3">
-          <span className={`${CHIP_BASE} ${CHIP_STYLE[v as Exclude<Verdict, "safe">]}`}>
+          <span className={`${CHIP_BASE} ${CHIP_STYLE[v]}`}>
             {v === "spoiler"
               ? `Spoils Episode ${c.moderation.spoils_episode}`
               : v === "lore_question"
                 ? "Answered from canon"
-                : "Disputed"}
+                : v === "contradiction"
+                  ? "Disputed"
+                  : "Safe"}
           </span>
           <p
             className="w-full text-xs leading-relaxed text-white/35 md:flex-1"

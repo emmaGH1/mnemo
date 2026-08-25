@@ -4,29 +4,35 @@
 > be enough to resume cold. If they aren't, this doc is under-written — fix it
 > before ending your session.
 
-**Last updated**: 2026-08-25, end of C6
+**Last updated**: 2026-08-25, end of C7
 **Branch**: `jam/spoiler-guard` (do **not** commit jam work to `master`)
-**Last tag**: `jam-c4`
+**Last tag**: `jam-c7`
 
 ---
 
 ## NEXT ACTION
 
-**Checkpoint C7 — live re-evaluation for the progress selector.** C6 shipped
-the feed page: `/` is now the community feed (beats 2–8) — progress slider
-(default **Episode 30**, EP30/EP50 pills), spoiler comments blurred with
-`Spoils Episode {n} · you're on {ep}` + tap-to-reveal (re-blurs on flip-back),
-`Answered from canon` chip for lore questions, `Disputed` chip for
-contradictions. Beat 8 already proven on the **cached** feed: 3 blurred@30
-(c11[47] c12[42] c13[49]) → 0 blurred@50.
+**⚠️ USER ACTION FIRST: cognition balance is −16.3.** The Mind replies
+*"can't classify until credits land"* and `/moderation/check` 502s. Live
+beat 6/7 verification is **impossible until you top up cognition** on the
+Minds builder platform. Check with `minds cognition balance --mind
+5470503e-f36b-1410-8466-00039ce7df11`.
 
-- C7 makes the selector drive **live** re-evaluation via
-  `POST /moderation/check` — the money shot is a *new* spoiler comment caught
-  on camera (beat 6), plus the episode-flip un-blur on a live verdict
-- Beat 8 note: the cached feed flip already un-blurs c11 at 50 — on video,
-  slide the selector 30→50 and let the request-id guarded refetch land
-- Then C8: live comment box (beat 6) + lore-question answer path (beat 7)
-  hooking the `Answered from canon` affordance
+**Checkpoint C8 — lore-question answer path (beat 7) + composer polish.**
+C7 shipped the live composer on `/`: type a comment → `POST
+/api/moderation/check` with the slider's current episode → verdict renders as
+a feed card (blurred + `Spoils Episode {n} · you're on {ep}` + tap-to-reveal
+if spoiler, `Safe`/`Answered from canon`/`Disputed` chips otherwise). Also
+fixed a real beat-6 killer: Next's rewrite proxy defaulted to a **30s**
+timeout, which murders the 11–130s Mind call — `experimental.proxyTimeout:
+200_000` now set in `frontend/next.config.mjs`.
+
+- C8: make the `Answered from canon` chip a real affordance — a lore_question
+  verdict triggers a canon-answer call and renders the answer citing the
+  episode (needs cognition)
+- Verify the composer happy path live once cognition lands (it's unverified:
+  only the error path was provable at −16)
+- Then C9: autonomy worker + SSE + `/digest` (beat 9)
 
 ### Also owed by the user (not code)
 
@@ -34,6 +40,7 @@ contradictions. Beat 8 already proven on the **cached** feed: 3 blurred@30
 - [x] Render auto-deploy confirmed: **ON, deploys on commit** → see landmines
 - [ ] Create the **draft BUIDL** with the form text below (editable until the
       deadline — removes deadline risk)
+- [ ] **Top up Mind cognition** (balance −16.3) — blocks all live beats
 
 ---
 
