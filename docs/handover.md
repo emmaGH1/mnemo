@@ -4,34 +4,29 @@
 > be enough to resume cold. If they aren't, this doc is under-written — fix it
 > before ending your session.
 
-**Last updated**: 2026-08-25, end of C3
+**Last updated**: 2026-08-25, end of C4
 **Branch**: `jam/spoiler-guard` (do **not** commit jam work to `master`)
-**Last tag**: `jam-c2`
+**Last tag**: `jam-c4`
 
 ---
 
 ## NEXT ACTION
 
-**Checkpoint C4 — moderation engine, HARD GATE.** `POST /moderation/check`
-returning four verdicts, proven in a terminal by end of Aug 26.
+**Checkpoint C5 — verdict cache.** The ~20 seeded feed comments need instant
+load (Mind calls take 11–130s — fine for beats 6–7 on camera, too slow for
+rendering the feed).
 
-- Input: `{ comment, reader_episode }` (and series id)
-- Output: `safe` / `spoiler` / `lore_question` / `contradiction`, with the
-  spoiler case carrying `spoils_episode` (the canon episode the comment reveals)
-  and the contradiction case carrying the canon fact it conflicts with
-- Architecture A holds: the Mind owns memory (wide canon re-seeded into the
-  `mnemo` conversation at C3). C4 calls the Mind per check; if live calls prove
-  slow/unreliable, cache real verdicts for the ~20 seeded comments (C5) and go
-  live only on beats 6–7
-- **Demo spoiler anchor:** `evt_017` (ep 47, Persephone moves into the
-  Underworld, Hades vows to protect her from Apollo). A seeded comment spoiling
-  that = "Spoils Episode 47 · you're on 30", and un-blurs at 50 (beat 8)
-- Canon: `data/series/lore-olympus/canon.json` v2 — 77 facts, 12 characters,
-  18 events, 6 locations, spanning episodes 1–50. `episodes.json` now lists 1–50
-- If `contradiction` detection proves fuzzy at C4, cut it and ship three
-  verdicts (roadmap gate)
+- Author the ~20 seeded comments yourself (never scrape real ones), spread
+  across verdicts: mostly `safe`, 3–4 `spoiler` (one = the ep-47 anchor),
+  2 `lore_question`, 1–2 `contradiction`
+- Script runs the **real Mind** over each comment → caches
+  `{ verdict, spoils_episode?, reason }` to
+  `data/series/lore-olympus/verdicts.json` (never hardcode fake verdicts —
+  cached real output is the documented rule)
+- Frontend reads the cache; `/moderation/check` stays live for beats 6–7
+- Keep comments varied: timestamps, avatars, lengths, one typo (roadmap)
 
-Then C5 (verdict cache) — see `jam-roadmap.md`.
+Then C6 (`/community` page: seeded feed + blur/reveal).
 
 ### Also owed by the user (not code)
 
@@ -43,6 +38,21 @@ Then C5 (verdict cache) — see `jam-roadmap.md`.
 ---
 
 ## What just happened (this session)
+
+**C4 — moderation engine, HARD GATE PASSED.** `src/moderation.ts`:
+`moderate(comment, readerEpisode, seriesId?)` → the Mind classifies each
+comment as `safe` / `spoiler` / `lore_question` / `contradiction`; spoiler
+carries `spoils_episode`. Wired as `POST /moderation/check` in `server.ts`
+(zod-validated, 400 on bad input, 502 on Mind failure). Two reliability fixes
+landed during the gate: (1) `afterFingerprint` snapshot in `tell()` —
+prevents `waitForReply` matching a stale previous-turn reply (one proof run
+returned a verbatim copy of the prior answer); (2) canon-digest grounding
+after pure-memory recall flaked on exact episode attribution. `npm run
+moderation:prove` = 7 live cases → **all four verdicts PASS**, including the
+beat-8 logic: the ep-47 spoiler comment is `spoiler` for a reader on 30 and
+`safe` for a reader on 50. HTTP route verified: 30→spoiler/47, 50→safe,
+bad input→400. Latency 11–130s/call (minimax-m3) → C5 cache is required for
+the seeded feed. Tagged `jam-c4`, pushed.
 
 **C3 — demo canon, wide.** Hand-authored `data/series/lore-olympus/canon.json`
 v2: 77 facts — 12 characters (role/species fields added to `CharacterRecord` in
@@ -100,6 +110,7 @@ discipline section, and a **context-overload protocol**. Created
 | Genre breadth | A README/pitch line only. **Not a build** |
 | Branch | `jam/spoiler-guard`; merge to master at C12 after `probe:okx` |
 | Canon memory architecture | **A — Mind owns memory** (cross-session recall proven at C2). Server sends full canon once; subsequent calls rely on conversation history |
+| Moderation grounding | **Hybrid** — C4 gate showed pure conversation-memory recall of *exact establishing episodes* is unreliable (mind misattributed ep-47 facts as pre-30 on a re-run). Each check sends a compact canon digest (server-side canon) + the Mind judges. Narrative memory / autonomy still lives in the Mind |
 | `.opencode/` | Gitignored |
 
 ---

@@ -17,6 +17,7 @@
     "listing:assets": "node scripts/listing-assets.js",
     "demo:3flags": "powershell -ExecutionPolicy Bypass -File scripts/demo-3-flags.ps1",
     "minds:gate": "tsx scripts/minds-gate.ts",
+    "moderation:prove": "tsx scripts/minds-moderation-prove.ts",
     "build": "tsc",
     "start": "node dist/server.js"
   },

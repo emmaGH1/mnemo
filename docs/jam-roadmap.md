@@ -70,7 +70,7 @@ Each checkpoint = one commit. Tagged ones are session boundaries and revert poin
 | **C1** | Docs: AGENTS.md jam section + context protocol, this roadmap, handover | — | ✅ done |
 | **C2** | Minds handshake: client lib, `src/minds.ts`, **prove cross-session recall** → **A won** (Mind owns memory) | `jam-c2` | ✅ done |
 | **C3** | Demo canon: ~40 facts hand-authored across **episodes 1–50** → **77 facts, 12 chars, 18 events, 6 locs** | — | ✅ done |
-| **C4** | Moderation engine: `POST /moderation/check` → 4 verdicts. **HARD GATE** | `jam-c4` | ⬜ |
+| **C4** | Moderation engine: `POST /moderation/check` → 4 verdicts. **HARD GATE** → **PASSED live (7-case proof, beat-8 logic verified)** | `jam-c4` | ✅ done |
 | **C5** | Verdict cache for the ~20 seeded comments (real Mind output, cached) | — | ⬜ |
 | **C6** | `/community` page: seeded feed + blur/reveal | — | ⬜ |
 | **C7** | Progress selector → re-evaluation. **Beat 8 works** | `jam-c7` | ⬜ |

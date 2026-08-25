@@ -15,6 +15,10 @@ if (!builderApiKey) {
 
 let _client: MindsClient | undefined;
 
+/** The jam demo Mind + its conversation alias. */
+export const MNEMO_MIND_ID = "5470503e-f36b-1410-8466-00039ce7df11";
+export const MNEMO_ALIAS = "mnemo";
+
 /** Singleton Minds client. Also reachable for getHistory / subscribeEvents. */
 export async function getMinds(): Promise<MindsClient> {
   if (!_client) {
@@ -33,8 +37,16 @@ export async function tell(
 ): Promise<string> {
   const minds = await getMinds();
   await minds.ensureConversation(alias, mindId);
+  // Snapshot the history fingerprint BEFORE sending so waitForReply only
+  // accepts a reply newer than this turn (prevents cross-turn stale matches).
+  const before = await minds.getLatestHistoryFingerprint(alias);
   await minds.sendMessage({ alias, messageText: message });
-  const outcome = await minds.waitForReply({ alias, timeoutMs });
+  const outcome = await minds.waitForReply({
+    alias,
+    timeoutMs,
+    afterFingerprint: before,
+    sentMessageText: message,
+  });
   if (outcome.timedOut) {
     throw new Error(`Minds reply timed out after ${timeoutMs}ms (alias "${alias}")`);
   }

@@ -47,6 +47,7 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { checkContinuity, getActiveModel } from "./checker.js";
 import { runCheck } from "./check-handler.js";
 import { loadCanon, listSeries, seriesDir as resolveCanonDir } from "./resolve-canon.js";
+import { moderate } from "./moderation.js";
 import type { CanonDoc } from "./types.js";
 
 dotenv.config();
@@ -1302,6 +1303,32 @@ app.post(
     }
   }
 );
+
+// ─── POST /moderation/check  (ungated, demo) ─────────────────────────────────
+// Body: { comment: string, reader_episode: number, series_id?: string }
+// Returns: { verdict, spoils_episode?, reason } — the Mind judges the comment
+// against its own canon memory, relative to the reader's progress.
+const moderationBodySchema = z.object({
+  comment: z.string().min(1).max(2000),
+  reader_episode: z.number().int().min(1),
+  series_id: z.string().regex(/^[a-z0-9_-]+$/).optional(),
+});
+app.post("/moderation/check", async (req: Request, res: Response) => {
+  const parsed = moderationBodySchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.issues.map((i) => i.message) });
+    return;
+  }
+  const { comment, reader_episode: readerEpisode } = parsed.data;
+  try {
+    const result = await moderate(comment, readerEpisode);
+    res.json({ comment, reader_episode: readerEpisode, ...result });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[/moderation/check error]", message);
+    res.status(502).json({ error: message });
+  }
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // startServer() — resolves the facilitator asynchronously (DNS probe), then
