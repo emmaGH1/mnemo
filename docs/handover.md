@@ -4,7 +4,7 @@
 > be enough to resume cold. If they aren't, this doc is under-written — fix it
 > before ending your session.
 
-**Last updated**: 2026-08-25, end of C9
+**Last updated**: 2026-08-25, end of C12
 **Branch**: `jam/spoiler-guard` (do **not** commit jam work to `master`)
 **Last tag**: `jam-c9`
 
@@ -12,21 +12,23 @@
 
 ## NEXT ACTION
 
-**Checkpoint C10 — `/mcp-service` page.** C8 + C9 shipped the two remaining
-no-credit beats: `POST /canon/answer` (deterministic, `source: canon`,
-verified: eyes→green ep1, Minthe→naiad, Hecate→best_friend ep9, kiss→ep25)
-drives the now-clickable `Answered from canon` chip, `/moderation/check`
-returns a friendly `503 kind:"cognition_empty"` when credits run out, and the
-`/digest` page (beat 9) shows the overnight counts (5 spoilers / 3 questions /
-2 contradictions) with a live SSE worker ticker — all from cached real Mind
-verdicts, zero live calls.
+**All build checkpoints done (C0–C12), no-credit edition.** `/` is the
+community feed (beats 1–5, 8), `/digest` is the overnight digest (beat 9),
+`/mcp-service` holds the marketing, `POST /canon/answer` drives beat 7 from
+the canon file (`source: canon`), and `/moderation/check` returns a friendly
+`503 kind:"cognition_empty"` when the Mind is out of credits. Everything
+runs with zero cognition; root tsc + frontend tsc clean; all three pages
+render 200.
 
-- C10: new `/mcp-service` page reusing the parked marketing components
-  (Hero, Showcase, VideoCards, HowToUse, Pricing) — **do not delete them**;
-  `/` stays the community feed; finalize Nav/Footer IA
-- Then C11: rewrite the video beat sheet for the no-credit reality (beats
-  1–5, 8, 9 filmable; 6/7 = canon-answer + graceful pause, never fake)
-- Then C12: README jam section + final `npm run build` + submit branch URL
+**Remaining (user):**
+1. Record the video — use the no-credit beat sheet in `docs/jam-roadmap.md`
+   (beats 1–5, 8, 9; never fake a live catch). If credits land first, upgrade
+   beat 6 to the live catch.
+2. Top up cognition (balance −16.3) only if you want live beats 6/7 on camera.
+3. Create the **draft BUIDL** with the form text below, then submit the
+   **branch URL**: `https://github.com/emmaGH1/mnemo/tree/jam/spoiler-guard`
+   — **do not merge to `master`** (Render auto-deploys it; a rebuild failure
+   takes OKX listing #6211 down mid-review).
 
 ### Also owed by the user (not code)
 
@@ -34,7 +36,7 @@ verdicts, zero live calls.
 - [x] Render auto-deploy confirmed: **ON, deploys on commit** → see landmines
 - [ ] Create the **draft BUIDL** with the form text below (editable until the
       deadline — removes deadline risk)
-- [ ] **Top up Mind cognition** (balance −16.3) — still required for live beats
+- [ ] **Top up Mind cognition** (balance −16.3) — only needed for live beats
 
 ---
 

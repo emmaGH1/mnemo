@@ -76,9 +76,9 @@ Each checkpoint = one commit. Tagged ones are session boundaries and revert poin
 | **C7** | Progress selector → re-evaluation. **Beat 8 works** → **live composer on `/` (beat 6); beat 8 cached flip proven. BLOCKED on live verify: cognition −16.3** | `jam-c7` | ⬜ (code done) |
 | **C8** | Live comment box (beat 6) + lore-question path (beat 7) → **composer (C7) + deterministic `/canon/answer` (source: canon, verified) + clickable chip** | — | ✅ done |
 | **C9** | Autonomy: background worker + SSE + unprompted digest, `/digest` → **`/digest` page + SSE worker ticker from cached verdicts, verified** | `jam-c9` | ✅ done |
-| **C10** | Copy/IA pass: demo to `/`, marketing to `/mcp-service` | — | ⬜ |
-| **C11** | Video: script → VO → capture → CapCut → captions | `jam-c11` | ⬜ |
-| **C12** | README + diagram, **submit branch URL** (no master merge) | `jam-submit` | ⬜ |
+| **C10** | Copy/IA pass: demo to `/`, marketing to `/mcp-service` → **`/mcp-service` live, `/` stays the feed** | — | ✅ done |
+| **C11** | Video: script → VO → capture → CapCut → captions → **no-credit beat sheet written (recording is user's)** | `jam-c11` | ⬜ (sheet done) |
+| **C12** | README + diagram, **submit branch URL** (no master merge) → **README jam section + honesty notes done; submission is user's** | `jam-submit` | ⬜ (docs done) |
 
 ### Day allocation (realistic solo hours ≈ 35–40, not 84)
 
