@@ -11,6 +11,7 @@ import { OKX_AGENT_URL } from "@/config";
 const links = [
   { label: "Community feed", href: "#feed" },
   { label: "Creator digest", href: "/digest" },
+  { label: "MCP service", href: "/mcp-service" },
 ];
 
 export default function Nav() {
