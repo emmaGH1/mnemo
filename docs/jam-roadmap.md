@@ -185,15 +185,23 @@ Craft rules:
 - Shoot beat 8 five-plus times, keep the best
 - **Write script → record audio → cut picture to audio.** Never the reverse.
 
-Beat sheet (1:30–2:00, required range):
+Beat sheet (1:30–2:00, required range) — **no-credit edition** (cognition −16.3
+as of C9). All beats filmable offline from cached verdicts + canon lookup.
+**Never fake a live Mind catch** — beat 6 shows the honest "paused — credits"
+state, beat 7 shows the canon answer. If credits land before recording,
+upgrade beat 6 back to the live catch:
 
 | Time | Content |
 |---|---|
 | 0:00–0:15 | Hook — "Every fan community spoils new readers." |
 | 0:15–0:30 | The problem — a comment spoiling a major reveal |
-| 0:30–1:00 | Mind in action — feed, live comment caught, spoiler blurred |
-| 1:00–1:30 | **Beat 8** (progress switch → un-blur) + digest + canon memory |
-| 1:30–2:00 | Impact — any serialized IP, any community |
+| 0:30–0:55 | Feed at Episode 30 — c11 sits blurred: "Spoils Episode 47 · you're on 30", click-to-reveal |
+| 0:55–1:15 | **Beat 8** — flip to Episode 50, the same comment un-blurs. Zoom + VO line |
+| 1:15–1:40 | Lore question → click "Answered from canon" → answer cites the episode. Then /digest: 5 spoilers · 3 questions · 2 contradictions |
+| 1:40–2:00 | Impact — any serialized IP, any community; live check shown as "paused until credits" |
+
+Prep: pre-seed the feed (default Episode 30, 3 blurred), pre-answer a canon
+question on screen, pre-load /digest with the SSE ticker running.
 
 `docs/promo-video.md` holds the older 52s x402 beat sheet — **superseded for
 the jam**, kept for the OKX listing.

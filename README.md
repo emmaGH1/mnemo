@@ -20,6 +20,42 @@ field, episode + panel refs, explanation) plus proposed canon additions.
 
 ---
 
+## Creative Minds Jam #1 — spoiler-aware community moderation (demo)
+
+> **Submission branch**: `jam/spoiler-guard`
+> **Track**: 3 — Moderation & Community Assistance
+> **Product**: Mnemo, a Minds agent holding a provenance-tracked canon memory,
+> moderates a fan community's feed **relative to each reader's progress** — a
+> comment that spoils episode 47 is blurred for someone on episode 30 and
+> visible for someone on 50.
+
+**Run the demo:** `npm run dev` in the repo root (Express :3000) and in
+`frontend/` (Next.js :3001), then open http://localhost:3001.
+
+| Surface | What it proves |
+|---|---|
+| `/` — community feed | Beats 1–5, 8: progress slider, spoilers blurred (`Spoils Episode 47 · you're on 30`), click-to-reveal, and the money shot — flipping 30 → 50 un-blurs the same comment |
+| `/digest` | Beat 9: the "overnight" digest (5 spoilers · 3 questions · 2 contradictions) with a live worker ticker |
+| Lore questions | Beat 7: the `Answered from canon` chip answers from the canon file, citing the establishing episode |
+| `POST /moderation/check` | Live classification by the Minds agent — grounded with a canon digest, the Mind is the judge |
+
+**Honesty notes (judges, please read):**
+- The 20 seeded comments were **authored for the demo** (never scraped from
+  real users); their verdicts are **real Minds-agent output**, cached so the
+  demo runs without spending cognition.
+- The Lore Olympus canon is a **seeded demo fixture** — recognizably the
+  series, but episode/panel numbers are hand-assigned for the demo, not
+  page-accurate.
+- `POST /canon/answer` is a **deterministic lookup** of that canon file
+  (labelled `source: "canon"`) — it is not a Mind call. Nothing in this repo
+  fabricates Mind output.
+- Live moderation consumes metered cognition; when the Mind's balance is
+  empty, `/moderation/check` returns a friendly `503 kind:"cognition_empty"`.
+- The same canon engine ships live as **OKX.AI Agent 6211** (x402,
+  $0.10/check).
+
+---
+
 ## For AI agents
 
 Paste this into Claude Code, Codex, Hermes, OpenClaw, or any x402-capable
@@ -219,9 +255,13 @@ four events, and three locations.
 ```
 mnemo/
 ├── src/
-│   ├── server.ts            # Express + x402 middleware + MCP transport
+│   ├── server.ts            # Express + x402 middleware + MCP transport + jam routes
+│   │                        #   (community/feed, moderation/check, canon/answer, digest)
 │   ├── checker.ts           # checkContinuity() — Gemini call + 100-line prompt
 │   ├── check-handler.ts     # runCheck() — bridges canon resolution + checker
+│   ├── moderation.ts        # Spoiler-aware moderation: Mind judge + canon digest
+│   ├── canon-answer.ts      # Deterministic lore-question answerer (source: canon)
+│   ├── minds.ts             # Minds client singleton + tell()
 │   ├── resolve-canon.ts     # loadCanon / listSeries / seriesDir
 │   ├── types.ts             # Shared TypeScript types
 │   ├── test.ts              # Continuity PoC test (Aria fixture)
@@ -254,9 +294,10 @@ mnemo/
 A separate Next.js 15 app at [`frontend/`](frontend/), runs on port 3001, and
 rewrites `/api/*` to the Express server on `:3000`.
 
-Sections: **Nav** · **Hero** · **Showcase** (Lore Olympus annotated page) ·
-**VideoCards** (3 demo loops) · **HowToUse** (prompt template with Copy
-button + price callout) · **Footer**.
+Sections: **Nav** · **`/`** (community feed — spoiler blur/reveal + progress
+slider + live-comment composer) · **`/digest`** (overnight digest + SSE worker
+ticker) · **`/mcp-service`** (marketing: Hero · Showcase · VideoCards ·
+HowToUse · Pricing).
 
 x.ai-inspired: AMOLED black + white only, Inter + Bricolage Grotesque + Rubik
 Mono + Oi fonts, mobile-responsive, `prefers-reduced-motion` respected.
