@@ -196,16 +196,20 @@ export default function CommunityFeed() {
   return (
     <>
       <header className="section-immersive relative mx-auto max-w-3xl px-5 pb-10 pt-20 md:px-8 md:pt-28">
-        <p className="font-mono-statement text-[11px] uppercase tracking-[0.18em] text-white/40">
-          Mnemo · reader mode
-        </p>
-        <h1 className="mt-4 font-display text-4xl font-extrabold tracking-tight text-white md:text-6xl">
-          The Lore Olympus community feed
+        <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-2 text-sm text-white/40">
+          <Link href="/" className="transition hover:text-white">Workspace</Link>
+          <span aria-hidden>/</span>
+          <Link href="/projects/lore-olympus" className="transition hover:text-white">Lore Olympus</Link>
+          <span aria-hidden>/</span>
+          <span className="text-white/70">Reader preview</span>
+        </nav>
+        <h1 className="mt-6 font-display text-4xl font-extrabold tracking-tight text-white md:text-6xl">
+          Preview the protected feed
         </h1>
         <p className="mt-4 max-w-xl text-base leading-relaxed text-white/50 md:text-lg">
-          Canon-aware moderation for 77 seeded facts across 50 episodes. Move
-          your progress and the feed changes with you—without exposing the text
-          you have not chosen to reveal.
+          See the community as a reader at any episode. Mnemo keeps future
+          reveals out of the initial feed response and updates the boundary as
+          progress changes.
         </p>
 
         <section
@@ -215,10 +219,10 @@ export default function CommunityFeed() {
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <p className="font-mono-statement text-[10px] uppercase tracking-[0.18em] text-cyan-200/70">
-                Judge path · 30 seconds
+                Suggested walkthrough
               </p>
               <h2 id="proof-title" className="mt-2 font-display text-2xl font-bold text-white">
-                Try the proof
+                Preview spoiler protection
               </h2>
               <p className="mt-1 max-w-xl text-sm leading-relaxed text-white/55">
                 The same comment is protected at Episode 30, revealed only by
@@ -226,7 +230,7 @@ export default function CommunityFeed() {
               </p>
             </div>
             <span className="rounded-full border border-cyan-200/20 px-3 py-1 font-mono text-[10px] uppercase tracking-[0.14em] text-cyan-100/70">
-              step {proofState} / 3
+              Step {proofState} of 3
             </span>
           </div>
 
@@ -321,35 +325,6 @@ export default function CommunityFeed() {
           )}
         </div>
 
-        <section aria-labelledby="architecture-title" className="mt-6 border-y border-white/10 py-5">
-          <div className="flex flex-wrap items-baseline justify-between gap-3">
-            <div>
-              <p className="font-mono-statement text-[10px] uppercase tracking-[0.18em] text-white/35">
-                What makes the proof work
-              </p>
-              <h2 id="architecture-title" className="mt-1 font-display text-xl font-bold text-white">
-                One moderation run, five connected layers
-              </h2>
-            </div>
-            <Link href="/digest" className="font-mono text-[10px] uppercase tracking-[0.14em] text-cyan-200/80 transition hover:text-cyan-100">
-              See the creator payoff →
-            </Link>
-          </div>
-          <ol className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-3 font-mono text-[10px] uppercase tracking-[0.12em] text-white/55">
-            {[
-              "Continuity engine",
-              "Episode-proven canon",
-              "Minds semantic classifier",
-              "Reader-relative protection",
-              "Creator digest",
-            ].map((layer, index) => (
-              <li key={layer} className="flex items-center gap-2">
-                <span className={index === 3 ? "text-cyan-100" : ""}>{layer}</span>
-                {index < 4 && <span aria-hidden className="text-white/20">→</span>}
-              </li>
-            ))}
-          </ol>
-        </section>
       </header>
 
       <section className="mx-auto max-w-3xl px-5 pb-10 md:px-8">
@@ -423,7 +398,7 @@ export default function CommunityFeed() {
         </div>
       </section>
 
-      <main id="feed" className="mx-auto max-w-3xl px-5 pb-28 md:px-8">
+      <section id="feed" className="mx-auto max-w-3xl px-5 pb-28 md:px-8">
         <div className="mb-6 flex items-center justify-between">
           <p className="font-mono-statement text-[11px] uppercase tracking-[0.18em] text-white/40">
             Seeded feed · cached Mind verdicts
@@ -470,41 +445,21 @@ export default function CommunityFeed() {
           </div>
         )}
 
-        <section className="mt-12 rounded-2xl border border-cyan-300/15 bg-black/55 p-5 md:p-6">
-          <p className="font-mono-statement text-[10px] uppercase tracking-[0.18em] text-cyan-200/70">
-            Reader feed → creator digest
-          </p>
-          <h2 className="mt-2 font-display text-2xl font-bold text-white">
-            The creator sees the same moderation run, not another product.
-          </h2>
-          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/55">
-            Reader protection happens at the moment of conversation. The digest
-            turns those cached Mind verdicts into the creator&rsquo;s review queue:
-            spoilers, lore questions, and disputed canon.
-          </p>
-          <Link
-            href="/digest"
-            className="mt-5 inline-flex rounded-full border border-cyan-200/25 px-4 py-2 text-sm font-medium text-cyan-100 transition hover:border-cyan-200/50 hover:bg-cyan-200/10"
-          >
-            Continue to creator digest →
-          </Link>
-        </section>
-
-        <section className="mt-6 border-t border-white/10 pt-8">
-          <p className="font-mono-statement text-[10px] uppercase tracking-[0.18em] text-white/35">
-            Built on Mnemo&rsquo;s canon engine
-          </p>
-          <h2 className="mt-2 font-display text-2xl font-bold text-white">
-            Continuity checking became the provenance layer.
-          </h2>
-          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-white/55">
-            Mnemo began by checking whether serialized stories stayed consistent.
-            That work established the durable technical foundation here: canon
-            facts carry the episode that proved them. Minds supplies the semantic
-            judgment; the canon engine supplies the exact reader boundary.
-          </p>
-        </section>
-      </main>
+        <div className="mt-12 flex flex-col justify-between gap-5 rounded-2xl border border-white/10 bg-white/[0.025] p-5 sm:flex-row sm:items-center md:p-6">
+          <div>
+            <h2 className="font-display text-xl font-bold text-white">Ready to review the creator side?</h2>
+            <p className="mt-1 text-sm text-white/45">The digest uses these same cached verdicts.</p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <Link href="/projects/lore-olympus" className="rounded-full border border-white/15 px-4 py-2 text-sm text-white/60 transition hover:text-white">
+              Project overview
+            </Link>
+            <Link href="/digest" className="rounded-full bg-cyan-100 px-4 py-2 text-sm font-semibold text-[#06110f] transition hover:bg-white">
+              Review digest
+            </Link>
+          </div>
+        </div>
+      </section>
     </>
   );
 }

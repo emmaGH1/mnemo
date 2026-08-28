@@ -1,5 +1,5 @@
 import Nav from "@/components/Nav";
-import CommunityFeed from "@/components/CommunityFeed";
+import Workspace from "@/components/Workspace";
 import Footer from "@/components/Footer";
 
 export default function Home() {
@@ -7,7 +7,7 @@ export default function Home() {
     <>
       <Nav />
       <main className="relative overflow-x-hidden">
-        <CommunityFeed />
+        <Workspace />
       </main>
       <Footer />
     </>

@@ -71,12 +71,12 @@ export default function MobileMenu({ open, onClose, links }: MobileMenuProps) {
           </nav>
 
           <motion.div
-            className="relative px-6 pb-10 text-center font-mono text-[10px] uppercase tracking-[0.16em] text-white/35"
+            className="relative px-6 pb-10 text-center text-xs text-white/35"
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: 0.28, ease }}
           >
-            77 canon facts · 50 episodes · reader-aware
+            Creator workspace · private beta
           </motion.div>
         </motion.div>
       )}

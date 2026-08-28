@@ -64,47 +64,50 @@ export default function Digest() {
   return (
     <>
       <header className="section-immersive relative mx-auto max-w-4xl px-5 pb-10 pt-20 md:px-8 md:pt-28">
-        <p className="font-mono-statement text-[11px] uppercase tracking-[0.18em] text-white/40">
-          Mnemo · creator view
-        </p>
-        <h1 className="mt-4 font-display text-4xl font-extrabold tracking-tight text-white md:text-6xl">
+        <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-2 text-sm text-white/40">
+          <Link href="/" className="transition hover:text-white">Workspace</Link>
+          <span aria-hidden>/</span>
+          <Link href="/projects/lore-olympus" className="transition hover:text-white">Lore Olympus</Link>
+          <span aria-hidden>/</span>
+          <span className="text-white/70">Moderation digest</span>
+        </nav>
+        <h1 className="mt-6 font-display text-4xl font-extrabold tracking-tight text-white md:text-6xl">
           Moderation digest
         </h1>
         <p className="mt-4 max-w-xl text-base leading-relaxed text-white/50 md:text-lg">
-          The creator payoff of the reader feed: one seeded moderation run,
-          classified against canon, with spoilers mapped to their reveal episode
-          and questions queued for a safe answer.
+          Review the comments Mnemo classified against this project’s canon:
+          spoilers mapped to their reveal episode, lore questions ready for a
+          safe answer, and disputed claims that need context.
         </p>
 
         <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-2">
-          <span className="flex items-center gap-2 font-mono text-[11px] text-white/50">
-            <span className="h-1.5 w-1.5 rounded-full bg-cyan-300" />
-            cached Mind run
+          <span className="rounded-full border border-cyan-200/15 bg-cyan-200/5 px-3 py-1 text-xs text-cyan-100/75">
+            Cached Mind run
           </span>
           {digest && (
-            <span className="font-mono text-[11px] text-white/35">
-              snapshot opened {timeLabel(digest.generated_at)}
+            <span className="text-xs text-white/35">
+              Opened {timeLabel(digest.generated_at)}
             </span>
           )}
         </div>
 
         <div className="mt-8 flex flex-wrap items-center gap-3">
           <Link
-            href="/"
+            href="/projects/lore-olympus"
             className="rounded-full border border-white/15 px-4 py-2 text-sm font-medium text-white/70 transition hover:border-white/30 hover:text-white"
           >
-            ← Return to reader proof
+            ← Project overview
           </Link>
-          <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-cyan-200/70">
-            Reader feed → creator digest
-          </p>
+          <Link href="/reader" className="rounded-full border border-white/15 px-4 py-2 text-sm font-medium text-white/70 transition hover:border-white/30 hover:text-white">
+            Open reader preview
+          </Link>
         </div>
       </header>
 
-      <main className="mx-auto max-w-4xl px-5 pb-28 md:px-8">
+      <section className="mx-auto max-w-4xl px-5 pb-28 md:px-8">
         {loading && !digest && (
           <div className="rounded-2xl border border-white/8 bg-black/40 p-10 text-center">
-            <p className="font-mono text-sm text-white/40">waking the worker…</p>
+            <p className="text-sm text-white/40">Preparing the digest…</p>
           </div>
         )}
         {error && !digest && (
@@ -144,8 +147,8 @@ export default function Digest() {
             </div>
 
             <p className="rounded-xl border border-white/10 bg-white/[0.025] px-4 py-3 text-sm leading-relaxed text-white/55">
-              These are the same cached Mind verdicts that protect readers in
-              the feed. The digest changes the audience, not the moderation run.
+              This is the creator view of the same cached verdicts used in the
+              reader preview. No new Mind call is made when this page opens.
             </p>
 
             {digest.worst_spoiler && (
@@ -156,7 +159,7 @@ export default function Digest() {
                 transition={{ duration: 0.5, delay: 0.15, ease }}
               >
                 <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-rose-200/80">
-                  Worst spoiler · Spoils Episode {digest.worst_spoiler.spoils_episode}
+                  Highest-risk spoiler · Reveals Episode {digest.worst_spoiler.spoils_episode}
                 </p>
                 <p className="mt-2 text-sm leading-relaxed text-white/80">
                   &ldquo;{digest.worst_spoiler.text}&rdquo;
@@ -182,11 +185,11 @@ export default function Digest() {
             </div>
 
             <p className="pt-2 text-center font-mono text-[10px] uppercase tracking-[0.16em] text-white/25">
-              {c!.total} seeded comments graded · {digest.source} · demo snapshot
+              {c!.total} seeded comments · {digest.source}
             </p>
           </div>
         )}
-      </main>
+      </section>
     </>
   );
 }

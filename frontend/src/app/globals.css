@@ -3,22 +3,34 @@
 /* Mnemo — AMOLED black, white-only, faint engineering grid */
 
 @theme {
-  --font-display: var(--font-bricolage), "Inter", sans-serif;
+  --font-display: var(--font-bricolage), sans-serif;
   --font-mono-statement: var(--font-rubik-mono), monospace;
   --font-oi: var(--font-oi), sans-serif;
 }
 
+:root {
+  --mnemo-bg: #030504;
+  --mnemo-panel: #080b0a;
+  --mnemo-accent: #b8fff1;
+  --mnemo-warm: #f3d7aa;
+}
+
 body {
-  background-color: #000;
+  background-color: var(--mnemo-bg);
   color: #fff;
-  font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI",
-    sans-serif;
+  font-family: var(--font-bricolage), sans-serif;
   background-image:
     linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
   background-size: 64px 64px;
   /* continuous dark field — no hard page edges */
   min-height: 100dvh;
+}
+
+.workspace-wash {
+  background:
+    radial-gradient(ellipse 55% 38% at 8% 0%, rgba(184, 255, 241, 0.08), transparent 72%),
+    radial-gradient(ellipse 40% 30% at 92% 8%, rgba(243, 215, 170, 0.055), transparent 72%);
 }
 
 h1,

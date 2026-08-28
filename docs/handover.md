@@ -4,7 +4,7 @@
 > be enough to resume cold. If they aren't, this doc is under-written — fix it
 > before ending your session.
 
-**Last updated**: 2026-08-28, judge-story pass complete (local verification)
+**Last updated**: 2026-08-28, creator-workspace reframing complete (local verification)
 **Branch**: `jam/spoiler-guard` (do **not** commit jam work to `master`)
 **Last tag**: `jam-c9`
 **Latest product commit**: judge-story pass checkpoint (see current branch log
@@ -14,31 +14,36 @@ for its local commit hash)
 
 ## NEXT ACTION
 
-**Goal: record the focused judge story, then submit the branch.** The core
-product and spoiler-safety boundary are working. Do not add infrastructure,
-restore the legacy OKX/MCP service to the primary navigation, or attempt a
-broad redesign.
+**Goal: record the creator-product journey, then submit the branch.** The site
+now opens as a Mnemo creator workspace instead of dropping directly into the
+Lore Olympus feed. The core product and spoiler-safety boundary are working.
+Do not add infrastructure, fake account creation, restore the legacy OKX/MCP
+service to primary navigation, or attempt a broad redesign.
 
 **Locked framing:** Mnemo began as a serialized-fiction continuity engine. Its
 episode-proven canon now powers a Minds-based, reader-relative moderation
 layer. The continuity/OKX lineage is credibility and foundation proof — not a
 second product, headline, navigation item, or competing call to action.
 
-**Judge-story pass completed:**
-1. The compact **“Try the proof”** rail sits above reader progress and guides
-   Episode 30 → intentional c11 reveal → Episode 50. The source comment is
-   focused and highlighted; the reveal remains a deliberate action.
-2. The reader page now states the full architecture:
-   **continuity engine → episode-proven canon → Minds semantic classifier →
-   reader-relative protection → creator digest**.
-3. The restrained **“Built on Mnemo’s canon engine”** section explains the
-   continuity-checker provenance layer without introducing any OKX/MCP route,
-   button, or competing navigation.
-4. Reader Feed → Creator Digest is explicit in both directions and the digest
-   identifies itself as the creator payoff of the exact same cached run.
-5. Root + frontend production builds, spoiler safety, continuity, moderation
-   cache, and applicable payment tests passed. Browser inspection completed the
-   guided journey with no console errors.
+**Creator-workspace pass completed:**
+1. `/` is now a welcoming creator workspace with product-level messaging,
+   workspace metrics, a project list, and an honest private-beta state. Lore
+   Olympus appears only as a clearly labeled seeded demo project.
+2. `/projects/lore-olympus` is a real project overview with protection setup,
+   review metrics, reader-preview and digest actions, the compact architecture
+   chain, and the restrained canon-engine foundation note.
+3. `/reader` contains the guided Episode 30 → deliberate c11 reveal → Episode
+   50 proof above reader progress. The protected text is still absent from the
+   initial feed response and fetched only after consent.
+4. `/digest` is the creator-side payoff of the same cached moderation run and
+   links back to both the project and reader preview. Cached versus metered
+   behavior remains labeled honestly.
+5. Navigation, footer, type, spacing, and mobile presentation were tightened.
+   Removed presentation-like labels including “Mnemo · reader mode,” “Mnemo ·
+   creator view,” “canon online,” “judge path,” and the oversized demo CTA.
+6. Root + frontend production builds, spoiler safety, continuity, moderation
+   cache, and applicable payment tests passed. Desktop and 390px browser checks
+   covered workspace → project → reader proof → digest and mobile navigation.
 
 **Success criteria:**
 - The promise and first interaction are obvious in under 10 seconds.
@@ -49,9 +54,10 @@ second product, headline, navigation item, or competing call to action.
 - Cached and metered behavior remain labeled honestly; there are no fake-live
   or autonomous-worker claims.
 
-**Scope guardrail:** no auth, database migration, multi-series system, Discord
-bot, full visual revamp, new OKX work, or legacy-service cleanup before the
-demo. Those are post-hackathon tasks.
+**Scope guardrail:** no auth, fake signup flow, database migration, multi-series
+system, Discord bot, full visual revamp, new OKX work, or legacy-service cleanup
+before the demo. The private-beta state is intentional until onboarding can be
+backed by real persistence.
 
 **After the UI pass (user):**
 1. Record the video around the episode 30 → reveal → episode 50 journey, then
@@ -183,8 +189,8 @@ discipline section, and a **context-overload protocol**. Created
 | Product | Spoiler-aware community moderator on a canon memory |
 | Community surface | **In-app feed** in the Next.js frontend — no Discord |
 | Demo series | **Lore Olympus**, canon **hand-authored** across ep 1–50 |
-| Landing page | Demo is `/`; legacy service is direct-link only and absent from jam navigation |
-| UI | **Editorial control room** — keep the AMOLED grid, focus on reader boundary + creator review |
+| Landing page | Creator workspace is `/`; Lore Olympus is a seeded project; legacy service is direct-link only and absent from jam navigation |
+| UI | **Creator workspace** — keep the AMOLED grid, connect project setup → reader preview → creator digest |
 | Video | Screen recording + CapCut + own voice. **No motion graphics** |
 | Genre breadth | A README/pitch line only. **Not a build** |
 | Branch | `jam/spoiler-guard`; merge to master at C12 after `probe:okx` |
