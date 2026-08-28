@@ -1,60 +1,330 @@
 {
   "series": "lore-olympus",
-  "version": 1,
-  "last_updated_episode": 3,
+  "version": 2,
+  "last_updated_episode": 50,
   "characters": [
     {
       "id": "persephone",
       "name": "Persephone",
       "status": "main",
+      "role": "Goddess of Spring and the mortal realm",
       "physical": {
         "eye_color": { "value": "green", "established_episode": 1, "established_panel": 1 },
         "hair_color": { "value": "pink", "established_episode": 1, "established_panel": 1 }
       },
+      "clothing_defaults": {
+        "outfit": { "value": "yellow cardigan and coral dress", "established_episode": 1, "established_panel": 2, "notes": "Her college look when she arrives in Olympus." }
+      },
+      "abilities": [
+        { "name": "Plant growth", "description": "Grows and shapes plants and flowers", "established_episode": 1, "established_panel": 4 },
+        { "name": "Red eyes", "description": "Eyes turn red when she is drunk or furious", "established_episode": 3, "established_panel": 12 }
+      ],
       "relationships": [
-        { "with": "hades", "type": "love_interest", "established_episode": 2, "established_panel": 8, "notes": "Meets at Hades' party" }
+        { "with": "demeter", "type": "mother", "established_episode": 1, "established_panel": 6, "notes": "Demeter is fiercely protective of her." },
+        { "with": "artemis", "type": "roommate_friend", "established_episode": 1, "established_panel": 5, "notes": "They room together in Olympus." },
+        { "with": "hades", "type": "love_interest", "established_episode": 2, "established_panel": 8, "notes": "First meets Hades at his party." },
+        { "with": "apollo", "type": "pursued_by", "established_episode": 18, "established_panel": 3, "notes": "Apollo begins courting her against her wishes." },
+        { "with": "ares", "type": "ex_lover", "established_episode": 14, "established_panel": 2, "notes": "A brief secret fling she regrets." }
       ]
     },
     {
       "id": "hades",
       "name": "Hades",
       "status": "main",
+      "role": "King of the Underworld",
       "physical": {
         "eye_color": { "value": "blue", "established_episode": 1, "established_panel": 1 },
-        "hair_color": { "value": "black", "established_episode": 1, "established_panel": 1 }
+        "hair_color": { "value": "black with white tips", "established_episode": 1, "established_panel": 1 }
       },
+      "clothing_defaults": {
+        "outfit": { "value": "white shirt and black vest", "established_episode": 2, "established_panel": 3, "notes": "His signature party look." }
+      },
+      "abilities": [
+        { "name": "Blue flames", "description": "Conjures and controls blue fire", "established_episode": 1, "established_panel": 9 }
+      ],
       "relationships": [
-        { "with": "persephone", "type": "love_interest", "established_episode": 2, "established_panel": 8, "notes": "King of the Underworld" }
+        { "with": "zeus", "type": "brother", "established_episode": 1, "established_panel": 10, "notes": "Zeus is King of Olympus." },
+        { "with": "minthe", "type": "on_and_off_girlfriend", "established_episode": 2, "established_panel": 5, "notes": "Toxic on-and-off relationship." },
+        { "with": "hecate", "type": "best_friend", "established_episode": 9, "established_panel": 1, "notes": "Hecate runs the Underworld Corp with him." },
+        { "with": "persephone", "type": "love_interest", "established_episode": 2, "established_panel": 8, "notes": "Falls for her at his party." }
       ]
     },
     {
       "id": "minthe",
       "name": "Minthe",
       "status": "supporting",
+      "role": "River nymph at Underworld Corp",
+      "species": "naiad",
       "physical": {
         "eye_color": { "value": "green", "established_episode": 1, "established_panel": 3 },
         "hair_color": { "value": "red", "established_episode": 1, "established_panel": 3 }
-      }
+      },
+      "relationships": [
+        { "with": "hades", "type": "on_and_off_girlfriend", "established_episode": 2, "established_panel": 5, "notes": "Manipulative; frequently demeans him." },
+        { "with": "thanatos", "type": "ex_boyfriend", "established_episode": 31, "established_panel": 2, "notes": "Shared a bitter history before Hades." }
+      ]
+    },
+    {
+      "id": "artemis",
+      "name": "Artemis",
+      "status": "supporting",
+      "role": "Goddess of the Hunt",
+      "physical": {
+        "hair_color": { "value": "silver-white", "established_episode": 1, "established_panel": 5 }
+      },
+      "relationships": [
+        { "with": "persephone", "type": "roommate_friend", "established_episode": 1, "established_panel": 5, "notes": "They live together in Olympus." },
+        { "with": "hades", "type": "niece", "established_episode": 1, "established_panel": 5, "notes": "Hades' niece." },
+        { "with": "apollo", "type": "twin_brother", "established_episode": 18, "established_panel": 2, "notes": "They are twins." }
+      ]
+    },
+    {
+      "id": "apollo",
+      "name": "Apollo",
+      "status": "antagonist",
+      "role": "God of the Sun and Music",
+      "physical": {
+        "hair_color": { "value": "blond", "established_episode": 18, "established_panel": 2 }
+      },
+      "relationships": [
+        { "with": "artemis", "type": "twin_brother", "established_episode": 18, "established_panel": 2, "notes": "Artemis is his twin sister." },
+        { "with": "persephone", "type": "pursues_her", "established_episode": 18, "established_panel": 3, "notes": "Pressures her into a relationship she does not want." }
+      ]
+    },
+    {
+      "id": "zeus",
+      "name": "Zeus",
+      "status": "supporting",
+      "role": "King of Olympus",
+      "physical": {
+        "eye_color": { "value": "blue", "established_episode": 1, "established_panel": 10 }
+      },
+      "relationships": [
+        { "with": "hades", "type": "brother", "established_episode": 1, "established_panel": 10 },
+        { "with": "hera", "type": "husband", "established_episode": 2, "established_panel": 2, "notes": "Married to Hera." }
+      ]
+    },
+    {
+      "id": "hera",
+      "name": "Hera",
+      "status": "supporting",
+      "role": "Queen of Olympus",
+      "relationships": [
+        { "with": "zeus", "type": "wife", "established_episode": 2, "established_panel": 2, "notes": "Married to Zeus." }
+      ]
+    },
+    {
+      "id": "demeter",
+      "name": "Demeter",
+      "status": "supporting",
+      "role": "Goddess of the Harvest",
+      "abilities": [
+        { "name": "Control the seasons", "description": "Turns the world cold and barren when grieving", "established_episode": 11, "established_panel": 8 }
+      ],
+      "relationships": [
+        { "with": "persephone", "type": "mother", "established_episode": 1, "established_panel": 6, "notes": "Fiercely protective; forbids the Underworld." }
+      ]
+    },
+    {
+      "id": "hecate",
+      "name": "Hecate",
+      "status": "supporting",
+      "role": "Witch; Hades' second-in-command at Underworld Corp",
+      "relationships": [
+        { "with": "hades", "type": "best_friend", "established_episode": 9, "established_panel": 1, "notes": "Runs the Underworld Corp with him." },
+        { "with": "persephone", "type": "mentor", "established_episode": 9, "established_panel": 2, "notes": "Takes Persephone under her wing at the internship." }
+      ]
+    },
+    {
+      "id": "eros",
+      "name": "Eros",
+      "status": "supporting",
+      "role": "God of Love",
+      "relationships": [
+        { "with": "persephone", "type": "friend", "established_episode": 13, "established_panel": 1, "notes": "Gives her a makeover; becomes a close friend." }
+      ]
+    },
+    {
+      "id": "ares",
+      "name": "Ares",
+      "status": "supporting",
+      "role": "God of War",
+      "relationships": [
+        { "with": "persephone", "type": "ex_lover", "established_episode": 14, "established_panel": 2, "notes": "A brief secret fling." }
+      ]
+    },
+    {
+      "id": "thanatos",
+      "name": "Thanatos",
+      "status": "supporting",
+      "role": "God of Death; Underworld Corp employee",
+      "relationships": [
+        { "with": "minthe", "type": "ex_boyfriend", "established_episode": 31, "established_panel": 2, "notes": "Bitter shared history before Hades." }
+      ]
     }
   ],
   "events": [
     {
       "id": "evt_001",
-      "title": "Persephone arrives in the mortal realm",
+      "title": "Persephone arrives in Olympus",
       "episode": 1,
-      "panel_start": 1,
-      "summary": "Persephone leaves the Underworld to attend college above ground.",
-      "participants": ["persephone"],
+      "panel_start": 2,
+      "summary": "Persephone leaves the mortal realm to study at university in Olympus and becomes Artemis' roommate.",
+      "participants": ["persephone", "artemis"],
       "significance": "inciting_incident"
     },
     {
       "id": "evt_002",
-      "title": "Persephone meets Hades",
+      "title": "Persephone and Hades meet at the party",
       "episode": 2,
       "panel_start": 8,
-      "summary": "Persephone and Hades first meet at a social gathering.",
+      "summary": "At Hades' party, Persephone and Hades meet for the first time and are immediately drawn to each other.",
       "participants": ["persephone", "hades"],
       "significance": "character_intro"
+    },
+    {
+      "id": "evt_003",
+      "title": "Drunk Persephone turns red-eyed",
+      "episode": 3,
+      "panel_start": 12,
+      "summary": "Persephone gets drunk at the party, her eyes turn red, and Hades drives her home.",
+      "participants": ["persephone", "hades"],
+      "significance": "key_trait_reveal"
+    },
+    {
+      "id": "evt_004",
+      "title": "Minthe and Hades' toxic relationship shown",
+      "episode": 3,
+      "panel_start": 5,
+      "summary": "Minthe is revealed as Hades' on-and-off girlfriend, manipulative and demeaning.",
+      "participants": ["hades", "minthe"],
+      "significance": "relationship_reveal"
+    },
+    {
+      "id": "evt_005",
+      "title": "Persephone interns at Underworld Corp",
+      "episode": 9,
+      "panel_start": 1,
+      "summary": "Hecate takes Persephone on as an intern at Underworld Corp; Hades is her boss.",
+      "participants": ["persephone", "hecate", "hades"],
+      "significance": "plot_turn"
+    },
+    {
+      "id": "evt_006",
+      "title": "Demeter forbids the Underworld",
+      "episode": 11,
+      "panel_start": 8,
+      "summary": "Demeter arrives in Olympus, furious, and forbids Persephone from setting foot in the Underworld.",
+      "participants": ["demeter", "persephone"],
+      "significance": "conflict"
+    },
+    {
+      "id": "evt_007",
+      "title": "Eros befriends Persephone",
+      "episode": 13,
+      "panel_start": 1,
+      "summary": "Eros gives Persephone a makeover and becomes her close friend and confidant.",
+      "participants": ["eros", "persephone"],
+      "significance": "character_intro"
+    },
+    {
+      "id": "evt_008",
+      "title": "Persephone's secret fling with Ares",
+      "episode": 14,
+      "panel_start": 2,
+      "summary": "Persephone has a brief secret fling with Ares, which she later regrets.",
+      "participants": ["persephone", "ares"],
+      "significance": "secret"
+    },
+    {
+      "id": "evt_009",
+      "title": "Hades saves Persephone at the pool party",
+      "episode": 16,
+      "panel_start": 4,
+      "summary": "At a pool party, drunk Persephone nearly drowns; Hades dives in and saves her.",
+      "participants": ["persephone", "hades"],
+      "significance": "turning_point"
+    },
+    {
+      "id": "evt_010",
+      "title": "Apollo begins pursuing Persephone",
+      "episode": 18,
+      "panel_start": 3,
+      "summary": "Apollo starts pressuring Persephone into a relationship, threatening and gaslighting her.",
+      "participants": ["apollo", "persephone"],
+      "significance": "plot_turn"
+    },
+    {
+      "id": "evt_011",
+      "title": "Hades and Persephone's first kiss",
+      "episode": 25,
+      "panel_start": 6,
+      "summary": "Hades and Persephone share their first kiss.",
+      "participants": ["persephone", "hades"],
+      "significance": "milestone"
+    },
+    {
+      "id": "evt_012",
+      "title": "Hades breaks up with Minthe",
+      "episode": 30,
+      "panel_start": 1,
+      "summary": "Hades finally ends his toxic relationship with Minthe.",
+      "participants": ["hades", "minthe"],
+      "significance": "relationship_end"
+    },
+    {
+      "id": "evt_013",
+      "title": "Minthe and Thanatos' history revealed",
+      "episode": 31,
+      "panel_start": 2,
+      "summary": "Minthe and Thanatos reveal their bitter shared history, explaining her resentment.",
+      "participants": ["minthe", "thanatos"],
+      "significance": "reveal"
+    },
+    {
+      "id": "evt_014",
+      "title": "Hades glimpses Persephone's act of wrath",
+      "episode": 38,
+      "panel_start": 3,
+      "summary": "Hades sees a vision of Persephone's buried past — an 'act of wrath' in which her power killed mortals.",
+      "participants": ["persephone", "hades"],
+      "significance": "reveal"
+    },
+    {
+      "id": "evt_015",
+      "title": "Apollo assaults Persephone",
+      "episode": 42,
+      "panel_start": 4,
+      "summary": "Apollo forces himself on Persephone in her apartment; she dissociates through it.",
+      "participants": ["apollo", "persephone"],
+      "significance": "major_plot"
+    },
+    {
+      "id": "evt_016",
+      "title": "Persephone flees to the mortal realm",
+      "episode": 44,
+      "panel_start": 2,
+      "summary": "In the aftermath of the assault, Persephone flees Olympus and returns home to Demeter.",
+      "participants": ["persephone", "demeter"],
+      "significance": "aftermath"
+    },
+    {
+      "id": "evt_017",
+      "title": "Persephone moves into the Underworld",
+      "episode": 47,
+      "panel_start": 3,
+      "summary": "Persephone returns and moves into the Underworld; Hades vows to protect her from Apollo.",
+      "participants": ["persephone", "hades"],
+      "significance": "climax"
+    },
+    {
+      "id": "evt_018",
+      "title": "Hades accepts the act of wrath",
+      "episode": 49,
+      "panel_start": 1,
+      "summary": "Hades learns the full truth of Persephone's act of wrath and accepts her completely.",
+      "participants": ["persephone", "hades"],
+      "significance": "resolution"
     }
   ],
   "locations": [
@@ -63,7 +333,42 @@
       "name": "Olympus",
       "status": "standing",
       "first_appearance_episode": 1,
-      "notes": "Realm of the gods; distinct from the Underworld."
+      "notes": "Realm of the gods; Persephone studies at university here."
+    },
+    {
+      "id": "loc_002",
+      "name": "The Underworld",
+      "status": "standing",
+      "first_appearance_episode": 1,
+      "notes": "Hades' realm, where the dead are pensioned. Persephone moves here at episode 47."
+    },
+    {
+      "id": "loc_003",
+      "name": "Underworld Corp",
+      "status": "standing",
+      "first_appearance_episode": 9,
+      "notes": "Hades' office tower; Persephone interns here, Hecate runs it with him."
+    },
+    {
+      "id": "loc_004",
+      "name": "Persephone's apartment",
+      "status": "standing",
+      "first_appearance_episode": 1,
+      "notes": "Shared with Artemis in Olympus. Site of the assault at episode 42."
+    },
+    {
+      "id": "loc_005",
+      "name": "Demeter's estate",
+      "status": "standing",
+      "first_appearance_episode": 11,
+      "notes": "Demeter's home in the mortal realm; Persephone flees here at episode 44."
+    },
+    {
+      "id": "loc_006",
+      "name": "Eros' pool house",
+      "status": "standing",
+      "first_appearance_episode": 16,
+      "notes": "Party venue where Persephone nearly drowns and Hades saves her."
     }
   ]
 }

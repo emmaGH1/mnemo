@@ -1,24 +1,52 @@
 # Mnemo
 
-> **Continuity, kept.** The memory layer for serialized webtoon and comic art.
+> **Canon remembers. Readers choose.** Spoiler-aware community moderation for
+> serialized fiction.
 
-[![OKX.AI Agent 6211](https://img.shields.io/badge/OKX.AI-Agent_6211-000?style=flat-square&logo=okx&logoColor=white)](https://www.okx.ai/agents/6211)
-[![x402 $0.10/check](https://img.shields.io/badge/x402-0.1_USDT_per_check-000?style=flat-square)](https://github.com/emmaGH1/mnemo#api)
-[![MCP Live](https://img.shields.io/badge/MCP-mnemo--9vze.onrender.com-000?style=flat-square)](https://mnemo-9vze.onrender.com/mcp)
 [![License ISC](https://img.shields.io/badge/license-ISC-000?style=flat-square)](LICENSE)
 
-Mnemo is a paid MCP agent that checks webtoon / comic pages for character
-continuity drift. Send a page image; get back a JSON of every flag (severity,
-field, episode + panel refs, explanation) plus proposed canon additions.
-
-- **One paid MCP tool**: `check-continuity` at **$0.10 USDT per call** via
-  [x402](https://www.x402.org/) on X Layer (eip155:196)
-- **No account, no API key** — just a signed EIP-3009 payment
-- **Listed on the OKX.AI Agent Service Platform** as Agent 6211
-- **Endpoint**: `https://mnemo-9vze.onrender.com/mcp`
-- **Built for**: webtoon artists, studios, and the AI agents that work for them
+Mnemo maps fan comments to a provenance-tracked canon and evaluates them
+relative to each reader's progress. The same comment can be protected at
+episode 30 and readable at episode 50—without removing it from the community.
 
 ---
+
+## Creative Minds Jam #1 — spoiler-aware community moderation (demo)
+
+> **Submission branch**: `jam/spoiler-guard`
+> **Track**: 3 — Moderation & Community Assistance
+> **Product**: Mnemo, a Minds agent holding a provenance-tracked canon memory,
+> moderates a fan community's feed **relative to each reader's progress** — a
+> comment that spoils episode 47 is blurred for someone on episode 30 and
+> visible for someone on 50.
+
+**Run the demo:** `npm run dev` in the repo root (Express :3000) and in
+`frontend/` (Next.js :3001), then open http://localhost:3001.
+
+| Surface | What it proves |
+|---|---|
+| `/` — community feed | Beats 1–5, 8: progress slider, spoilers blurred (`Spoils Episode 47 · you're on 30`), click-to-reveal, and the money shot — flipping 30 → 50 un-blurs the same comment |
+| `/digest` | Creator snapshot from the cached moderation run (5 spoilers · 3 questions · 2 contradictions) |
+| Lore questions | Beat 7: the `Answered from canon` chip answers from the canon file, citing the establishing episode |
+| `POST /moderation/check` | Live classification by the Minds agent — grounded with a canon digest, the Mind is the judge |
+
+**Honesty notes (judges, please read):**
+- The 20 seeded comments were **authored for the demo** (never scraped from
+  real users); their verdicts are **real Minds-agent output**, cached so the
+  demo runs without spending cognition.
+- The Lore Olympus canon is a **seeded demo fixture** — recognizably the
+  series, but episode/panel numbers are hand-assigned for the demo, not
+  page-accurate.
+- `POST /canon/answer` is a **deterministic lookup** of that canon file
+  (labelled `source: "canon"`) — it is not a Mind call. Nothing in this repo
+  fabricates Mind output.
+- Live moderation consumes metered cognition; when the Mind's balance is
+  empty, `/moderation/check` returns a friendly `503 kind:"cognition_empty"`.
+
+---
+
+<details>
+<summary>Legacy continuity-checking service</summary>
 
 ## For AI agents
 
@@ -214,14 +242,20 @@ four events, and three locations.
 
 ---
 
+</details>
+
 ## Project structure
 
 ```
 mnemo/
 ├── src/
-│   ├── server.ts            # Express + x402 middleware + MCP transport
+│   ├── server.ts            # Express + x402 middleware + MCP transport + jam routes
+│   │                        #   (community/feed, moderation/check, canon/answer, digest)
 │   ├── checker.ts           # checkContinuity() — Gemini call + 100-line prompt
 │   ├── check-handler.ts     # runCheck() — bridges canon resolution + checker
+│   ├── moderation.ts        # Spoiler-aware moderation: Mind judge + canon digest
+│   ├── canon-answer.ts      # Deterministic lore-question answerer (source: canon)
+│   ├── minds.ts             # Minds client singleton + tell()
 │   ├── resolve-canon.ts     # loadCanon / listSeries / seriesDir
 │   ├── types.ts             # Shared TypeScript types
 │   ├── test.ts              # Continuity PoC test (Aria fixture)
@@ -254,9 +288,10 @@ mnemo/
 A separate Next.js 15 app at [`frontend/`](frontend/), runs on port 3001, and
 rewrites `/api/*` to the Express server on `:3000`.
 
-Sections: **Nav** · **Hero** · **Showcase** (Lore Olympus annotated page) ·
-**VideoCards** (3 demo loops) · **HowToUse** (prompt template with Copy
-button + price callout) · **Footer**.
+Jam surfaces: **`/`** (reader-aware feed, protected reveal, progress selector,
+and metered live classifier) and **`/digest`** (creator snapshot from cached
+Mind verdicts). The legacy `/mcp-service` route remains direct-link only and is
+not part of the jam navigation.
 
 x.ai-inspired: AMOLED black + white only, Inter + Bricolage Grotesque + Rubik
 Mono + Oi fonts, mobile-responsive, `prefers-reduced-motion` respected.
@@ -284,6 +319,9 @@ real `tools/call` with a real test image and asserts the full
 `unpaid → 402 → sign → 200 with JSON-RPC result` path.
 
 ---
+
+<details>
+<summary>Legacy service listing and deployment notes</summary>
 
 ## OKX.AI listing (Agent 6211)
 
@@ -337,6 +375,8 @@ onchainos agent update --agent-id 6211 --service '[{
 >   under review" for ~24h).
 
 ---
+
+</details>
 
 ## Tech stack
 

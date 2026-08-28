@@ -47,6 +47,8 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { checkContinuity, getActiveModel } from "./checker.js";
 import { runCheck } from "./check-handler.js";
 import { loadCanon, listSeries, seriesDir as resolveCanonDir } from "./resolve-canon.js";
+import { moderate, effectiveVerdict, type CachedVerdict, type ModerationResult, type ModerationVerdict } from "./moderation.js";
+import { answerFromCanon } from "./canon-answer.js";
 import type { CanonDoc } from "./types.js";
 
 dotenv.config();
@@ -1302,6 +1304,259 @@ app.post(
     }
   }
 );
+
+// ─── POST /moderation/check  (ungated, demo) ─────────────────────────────────
+// Body: { comment: string, reader_episode: number, series_id?: string }
+// Returns: { verdict, spoils_episode?, reason } — the Mind judges the comment
+// against its own canon memory, relative to the reader's progress.
+const moderationBodySchema = z.object({
+  comment: z.string().min(1).max(2000),
+  reader_episode: z.number().int().min(1),
+  series_id: z.string().regex(/^[a-z0-9_-]+$/).optional(),
+});
+const moderationRateWindows = new Map<string, { count: number; resetAt: number }>();
+
+app.post("/moderation/check", async (req: Request, res: Response) => {
+  const parsed = moderationBodySchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.issues.map((i) => i.message) });
+    return;
+  }
+  const rateKey = req.ip || "unknown";
+  const now = Date.now();
+  const previousWindow = moderationRateWindows.get(rateKey);
+  const rateWindow =
+    previousWindow && previousWindow.resetAt > now
+      ? previousWindow
+      : { count: 0, resetAt: now + 10 * 60_000 };
+  if (rateWindow.count >= 5) {
+    res.status(429).json({
+      error: "Live moderation limit reached. Try again after the current demo window resets.",
+      retry_after_seconds: Math.ceil((rateWindow.resetAt - now) / 1000),
+    });
+    return;
+  }
+  rateWindow.count += 1;
+  moderationRateWindows.set(rateKey, rateWindow);
+  const {
+    comment,
+    reader_episode: readerEpisode,
+    series_id: seriesId,
+  } = parsed.data;
+  try {
+    const result = await moderate(
+      comment,
+      readerEpisode,
+      seriesId ?? "lore-olympus"
+    );
+    res.json({ comment, reader_episode: readerEpisode, ...result });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[/moderation/check error]", message);
+    // The Mind pauses classification when cognition runs dry (metered fuel).
+    // Surface a friendly, explicit state instead of leaking the raw reply.
+    if (/credits?|conversion mode|top ?up|can't classify|locked to/i.test(message)) {
+      res.status(503).json({
+        error:
+          "Mnemo's Mind is out of cognition credits — live moderation is paused until credits land. The seeded feed below uses cached verdicts.",
+        kind: "cognition_empty",
+      });
+      return;
+    }
+    if (/reader_episode \d+ exceeds canon episode \d+/i.test(message)) {
+      res.status(400).json({ error: message });
+      return;
+    }
+    res.status(502).json({ error: message });
+  }
+});
+
+// ─── POST /canon/answer  (ungated, demo) ────────────────────────────────────
+// Body: { question: string, series_id?: string }
+// Deterministic canon lookup — the no-credit beat-7 path. Answers a lore
+// question directly from the series canon (the same file the Mind is grounded
+// on) and labels itself source:"canon". Never fabricates Mind output.
+const canonAnswerSchema = z.object({
+  question: z.string().min(3).max(500),
+  reader_episode: z.number().int().min(1),
+  series_id: z.string().regex(/^[a-z0-9_-]+$/).optional(),
+});
+app.post("/canon/answer", (req: Request, res: Response) => {
+  const parsed = canonAnswerSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.issues.map((i) => i.message) });
+    return;
+  }
+  const { question, reader_episode: readerEpisode, series_id: seriesId } = parsed.data;
+  try {
+    res.json(
+      answerFromCanon(
+        loadCanon(seriesId ?? "lore-olympus"),
+        question,
+        readerEpisode
+      )
+    );
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    res.status(500).json({ error: message });
+  }
+});
+
+// ─── GET /digest  (ungated, seeded demo snapshot) ──────────────────────────
+// Creator digest for the seeded demo run. Aggregates cached real Mind verdicts
+// (never a live call) so it remains available with zero cognition.
+interface DigestItem {
+  comment_id: string;
+  author: string;
+  text: string;
+  spoils_episode?: number;
+}
+interface DigestData {
+  series_id: string;
+  generated_at: string;
+  source: "cached Mind verdicts";
+  counts: Record<ModerationVerdict, number> & { total: number };
+  worst_spoiler: DigestItem | null;
+  spoilers: DigestItem[];
+  questions: DigestItem[];
+  contradictions: DigestItem[];
+}
+
+function computeDigest(seriesId: string): DigestData {
+  const dir = resolveCanonDir(seriesId);
+  const commentsPath = path.join(dir, "seed-comments.json");
+  const verdictsPath = path.join(dir, "verdicts.json");
+  if (!fs.existsSync(commentsPath) || !fs.existsSync(verdictsPath)) {
+    throw new Error(`No seeded feed for series "${seriesId}"`);
+  }
+  const comments = JSON.parse(fs.readFileSync(commentsPath, "utf-8")).comments as {
+    id: string;
+    author: string;
+    text: string;
+  }[];
+  const verdicts = JSON.parse(fs.readFileSync(verdictsPath, "utf-8")).verdicts as CachedVerdict[];
+  const byId = new Map(comments.map((c) => [c.id, c]));
+  const counts = {
+    safe: 0,
+    spoiler: 0,
+    lore_question: 0,
+    contradiction: 0,
+    total: verdicts.length,
+  } as DigestData["counts"];
+  const spoilers: DigestItem[] = [];
+  const questions: DigestItem[] = [];
+  const contradictions: DigestItem[] = [];
+  for (const v of verdicts) {
+    counts[v.verdict] = (counts[v.verdict] ?? 0) + 1;
+    const meta = byId.get(v.comment_id);
+    const item: DigestItem = {
+      comment_id: v.comment_id,
+      author: meta?.author ?? "",
+      text: meta?.text ?? "",
+      ...(v.spoils_episode != null ? { spoils_episode: v.spoils_episode } : {}),
+    };
+    if (v.verdict === "spoiler") spoilers.push(item);
+    else if (v.verdict === "lore_question") questions.push(item);
+    else if (v.verdict === "contradiction") contradictions.push(item);
+  }
+  spoilers.sort((a, b) => (b.spoils_episode ?? 0) - (a.spoils_episode ?? 0));
+  return {
+    series_id: seriesId,
+    generated_at: new Date().toISOString(),
+    source: "cached Mind verdicts",
+    counts,
+    worst_spoiler: spoilers[0] ?? null,
+    spoilers,
+    questions,
+    contradictions,
+  };
+}
+
+app.get("/digest", (req: Request, res: Response) => {
+  const seriesId = (req.query.series_id as string) || "lore-olympus";
+  if (!/^[a-z0-9_-]+$/.test(seriesId)) {
+    res.status(400).json({ error: "invalid series_id" });
+    return;
+  }
+  try {
+    res.json(computeDigest(seriesId));
+  } catch (err: unknown) {
+    res.status(404).json({ error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
+// ─── GET /community/feed  (ungated, demo) ────────────────────────────────────
+// Returns the seeded comments each merged with the verdict effective for the
+// given reader_episode (instant — reads the cached Mind verdicts, no live call).
+// This is the beat-4/beat-8 surface: a comment blurs iff its verdict is
+// "spoiler" for this reader.
+app.get("/community/feed", (req: Request, res: Response) => {
+  const seriesId = (req.query.series_id as string) || "lore-olympus";
+  if (!/^[a-z0-9_-]+$/.test(seriesId)) {
+    res.status(400).json({ error: "invalid series_id" });
+    return;
+  }
+  const readerEpisode = Math.max(1, Number(req.query.reader_episode) || 1);
+  const dir = resolveCanonDir(seriesId);
+  const commentsPath = path.join(dir, "seed-comments.json");
+  const verdictsPath = path.join(dir, "verdicts.json");
+  if (!fs.existsSync(commentsPath) || !fs.existsSync(verdictsPath)) {
+    res.status(404).json({ error: `No seeded feed for series "${seriesId}"` });
+    return;
+  }
+  const comments = JSON.parse(fs.readFileSync(commentsPath, "utf-8")).comments as {
+    id: string;
+    [key: string]: unknown;
+  }[];
+  const verdicts = JSON.parse(fs.readFileSync(verdictsPath, "utf-8")).verdicts as CachedVerdict[];
+  const feed = comments.map((c) => {
+    const cached = verdicts.find((v) => v.comment_id === c.id);
+    const moderation: ModerationResult = cached
+      ? effectiveVerdict(cached, readerEpisode)
+      : { verdict: "safe", reason: "uncached" };
+    if (moderation.verdict === "spoiler") {
+      const { text: _protectedText, ...meta } = c;
+      return {
+        ...meta,
+        text: "",
+        protected: true,
+        moderation,
+        spoils_episode: moderation.spoils_episode ?? null,
+      };
+    }
+    return { ...c, protected: false, moderation, spoils_episode: moderation.spoils_episode ?? null };
+  });
+  res.json({ series_id: seriesId, reader_episode: readerEpisode, comments: feed });
+});
+
+const revealBodySchema = z.object({
+  comment_id: z.string().min(1).max(100),
+  series_id: z.string().regex(/^[a-z0-9_-]+$/).optional(),
+});
+
+app.post("/community/reveal", (req: Request, res: Response) => {
+  const parsed = revealBodySchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.issues.map((i) => i.message) });
+    return;
+  }
+  const seriesId = parsed.data.series_id ?? "lore-olympus";
+  const commentsPath = path.join(resolveCanonDir(seriesId), "seed-comments.json");
+  if (!fs.existsSync(commentsPath)) {
+    res.status(404).json({ error: `No seeded feed for series "${seriesId}"` });
+    return;
+  }
+  const comments = JSON.parse(fs.readFileSync(commentsPath, "utf-8")).comments as {
+    id: string;
+    text: string;
+  }[];
+  const comment = comments.find((item) => item.id === parsed.data.comment_id);
+  if (!comment) {
+    res.status(404).json({ error: "Comment not found" });
+    return;
+  }
+  res.json({ comment_id: comment.id, text: comment.text });
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // startServer() — resolves the facilitator asynchronously (DNS probe), then

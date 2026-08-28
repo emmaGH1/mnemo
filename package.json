@@ -16,6 +16,11 @@
     "probe:okx": "tsx scripts/probe-okx-replay.ts",
     "listing:assets": "node scripts/listing-assets.js",
     "demo:3flags": "powershell -ExecutionPolicy Bypass -File scripts/demo-3-flags.ps1",
+    "minds:gate": "tsx scripts/minds-gate.ts",
+    "moderation:prove": "tsx scripts/minds-moderation-prove.ts",
+    "moderation:cache": "tsx scripts/minds-verdict-cache.ts",
+    "moderation:check-cache": "tsx scripts/check-moderation-cache.ts",
+    "test:spoiler-safety": "tsx scripts/check-spoiler-safety.ts",
     "build": "tsc",
     "start": "node dist/server.js"
   },
@@ -30,6 +35,7 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@animocabrands/minds-client-lib": "^0.1.4",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@okxweb3/x402-core": "^0.1.0",
     "@okxweb3/x402-evm": "^0.2.1",

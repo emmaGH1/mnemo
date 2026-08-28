@@ -1,13 +1,13 @@
 import Nav from "@/components/Nav";
-import Workspace from "@/components/Workspace";
+import Digest from "@/components/Digest";
 import Footer from "@/components/Footer";
 
-export default function Home() {
+export default function DigestPage() {
   return (
     <>
       <Nav />
       <main className="relative overflow-x-hidden">
-        <Workspace />
+        <Digest />
       </main>
       <Footer />
     </>

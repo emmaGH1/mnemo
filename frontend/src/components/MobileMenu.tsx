@@ -3,8 +3,6 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
-import Pill from "./ui/Pill";
-import { OKX_AGENT_URL } from "@/config";
 
 type MobileMenuProps = {
   open: boolean;
@@ -73,14 +71,12 @@ export default function MobileMenu({ open, onClose, links }: MobileMenuProps) {
           </nav>
 
           <motion.div
-            className="relative flex flex-col gap-3 px-6 pb-10"
+            className="relative px-6 pb-10 text-center text-xs text-white/35"
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: 0.28, ease }}
           >
-            <Pill href={OKX_AGENT_URL} className="w-full justify-center">
-              Use on OKX.AI
-            </Pill>
+            Creator workspace · private beta
           </motion.div>
         </motion.div>
       )}

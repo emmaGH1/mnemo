@@ -1,13 +1,7 @@
 import type { Metadata } from "next";
-import { Inter, Bricolage_Grotesque, Rubik_Mono_One, Oi } from "next/font/google";
+import { Bricolage_Grotesque, Rubik_Mono_One, Oi } from "next/font/google";
 import Cursor from "@/components/Cursor";
 import "./globals.css";
-
-const inter = Inter({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-inter",
-});
 
 // Display face — H1/H2/H3. Closest free match to Briola/Britt Grotesk.
 const bricolage = Bricolage_Grotesque({
@@ -30,9 +24,9 @@ const oi = Oi({
 });
 
 export const metadata: Metadata = {
-  title: "Mnemo",
+  title: "Mnemo — Spoiler-aware canon intelligence",
   description:
-    "Catch continuity breaks before your readers do. Mnemo reads every page you ship, flags what doesn't match, and remembers so you never have to.",
+    "Reader-relative spoiler protection powered by episode-proven canon and Minds semantic classification.",
 };
 
 export default function RootLayout({
@@ -41,7 +35,8 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${inter.variable} ${bricolage.variable} ${rubikMono.variable} ${oi.variable}`}
+      className={`${bricolage.variable} ${rubikMono.variable} ${oi.variable}`}
+      data-scroll-behavior="smooth"
     >
       <body className="bg-black text-white antialiased" suppressHydrationWarning>
         {children}

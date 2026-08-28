@@ -1,0 +1,229 @@
+# Creative Minds Jam #1 — Roadmap
+
+**Event**: Creative Minds Jam #1: Hong Kong (Animoca Brands / Minds)
+**Deadline**: 2026-08-28 **15:59 UTC** (23:59 HKT) — *submit by ~09:00 UTC*
+**Track**: 3 — Moderation & Community Assistance
+**Branch**: `jam/spoiler-guard`
+**Prize pool**: $10,000 · Track winner $1,200 · Grand $2,300 · **Student $1,300**
+**Entrant**: solo, student
+
+---
+
+## The pitch (locked)
+
+**Mnemo: spoiler-aware canon intelligence for serialized fiction communities.**
+
+A Minds classifier judges community language against a provenance-tracked
+canon — every character fact, event, and location carries the exact episode
+that established it. Together they compute **spoiler risk relative to each
+reader's own progress**.
+
+The defensible claim: the Mind provides semantic classification beyond keyword
+filters; provenance supplies the episode math. The seeded path caches genuine
+Mind output for speed and reproducibility.
+
+### Submission form text (926 chars, already drafted)
+
+See the "Tell us about your idea" block in `docs/handover.md`.
+
+---
+
+## Judging criteria (5 × 1–10, equal weight)
+
+| Criterion | Our play |
+|---|---|
+| **Minds Integration Depth** | The Mind performs semantic classification against grounded canon; cached genuine output powers the seeded path |
+| **Creator-Economy Problem Fit** | Direct hit on Track 3; spoilers + lore load are real creator pain |
+| **Innovation & Creativity** | Episode-aware, progress-relative spoiler detection does not exist |
+| **Execution & Completeness** | Reuse a shipped canon engine; demo one series deeply |
+| **Viability & Scalability** | The canon schema and per-series moderation conversation can extend to other serialized IP |
+
+---
+
+## The demo path — the spine
+
+**Nine beats. If a feature does not serve one of these, do not build it.**
+
+1. Canon overview — "Mnemo knows N facts across 50 episodes"
+2. Community feed, seeded with authored fan comments
+3. Reader-progress selector set to **Episode 30**
+4. A seeded comment sits blurred: **"Spoils Episode 47 · you're on 30"**
+5. Click to reveal → unblurs (consent, not censorship)
+6. **Type a new spoiler comment live** → the Mind catches it on camera
+7. **Ask a lore question live** → Mind answers, citing the episode
+8. **Switch progress to Episode 50 → the same comment un-blurs** ⭐
+9. Creator digest — "Overnight: 6 spoilers, 3 questions, 1 contradiction"
+
+> **Beat 8 is the most important shot in the submission.** It is the proof this
+> is memory and not a keyword blocklist. Every skeptical judge is thinking
+> "this is just regex on character names" — beat 8 kills that in three seconds.
+> Give it the zoom and the voiceover line. If only one shot lands, it's this one.
+
+---
+
+## Checkpoints
+
+Each checkpoint = one commit. Tagged ones are session boundaries and revert points.
+
+| CP | Work | Tag | Status |
+|----|------|-----|--------|
+| **C0** | Baseline: commit 5.04, gitignore `.opencode/`, fix README URLs, branch | `jam-c0` | ✅ done |
+| **C1** | Docs: AGENTS.md jam section + context protocol, this roadmap, handover | — | ✅ done |
+| **C2** | Minds handshake: client lib, `src/minds.ts`, **prove cross-session recall** → **A won** (Mind owns memory) | `jam-c2` | ✅ done |
+| **C3** | Demo canon: ~40 facts hand-authored across **episodes 1–50** → **77 facts, 12 chars, 18 events, 6 locs** | — | ✅ done |
+| **C4** | Moderation engine: `POST /moderation/check` → 4 verdicts. **HARD GATE** → **PASSED live (7-case proof, beat-8 logic verified)** | `jam-c4` | ✅ done |
+| **C5** | Verdict cache for the ~20 seeded comments (real Mind output, cached) → **20 cached, check-moderation-cache green, feed endpoint live** | — | ✅ done |
+| **C6** | `/community` page: seeded feed + blur/reveal → **`/` is now the feed — slider + blur/reveal + chips verified live, beat 8 works** | — | ✅ done |
+| **C7** | Progress selector → re-evaluation. **Beat 8 works** → **live composer on `/` (beat 6); beat 8 cached flip proven. BLOCKED on live verify: cognition −16.3** | `jam-c7` | ⬜ (code done) |
+| **C8** | Live comment box (beat 6) + lore-question path (beat 7) → **composer (C7) + deterministic `/canon/answer` (source: canon, verified) + clickable chip** | — | ✅ done |
+| **C9** | Creator digest from cached verdicts, `/digest` → **honest snapshot UI; no autonomy claim in the no-credit build** | `jam-c9` | ✅ done |
+| **C10** | Copy/IA pass: demo to `/`, marketing to `/mcp-service` → **`/mcp-service` live, `/` stays the feed** | — | ✅ done |
+| **C11** | Video: script → VO → capture → CapCut → captions → **no-credit beat sheet written (recording is user's)** | `jam-c11` | ⬜ (sheet done) |
+| **C12** | README + diagram, **submit branch URL** (no master merge) → **README jam section + honesty notes done; submission is user's** | `jam-submit` | ⬜ (docs done) |
+
+### Day allocation (realistic solo hours ≈ 35–40, not 84)
+
+| When | Checkpoints | Hours |
+|---|---|---|
+| Tonight (Aug 25) | C0, C1, C2 | ~3 |
+| Aug 26 | C3, C4, C5 | ~10 |
+| Aug 27 AM | C6, C7, C8 | ~10 |
+| Aug 27 PM → Aug 28 early | C9, C10, C11 | ~10 |
+| Aug 28 by 09:00 UTC | C12 + buffer | ~4 |
+
+---
+
+## Gates and cut lines
+
+- **C2 gate** — send canon, then in a **fresh process** ask a recall question.
+  If recall is unreliable: canon lives server-side, pass the relevant slice per
+  call. Decide at C2, not on day 3.
+- **C4 gate** — four verdicts (`safe` / `spoiler` / `lore_question` /
+  `contradiction`) proven in a terminal by end of Aug 26. If not, **drop
+  `contradiction`** and ship three.
+- **End of Aug 27 AM** — beats 1–8 clickable. Ugly is acceptable, broken is not.
+- **Build gate, every checkpoint touching `src/`** — `npm run build` (tsc) must
+  pass before committing. A broken build is what would kill the Render deploy
+  later, and it's cheapest to catch immediately.
+- **C12** — **do not merge to `master`.** Render auto-deploys `master` on every
+  commit and a failed rebuild takes `/mcp` down while OKX listing #6211 is under
+  review. Submit the branch URL:
+  `https://github.com/emmaGH1/mnemo/tree/jam/spoiler-guard`.
+  Merge after the OKX review closes, with `probe:okx` green.
+  **Zero commits to `master` until after the deadline** — even a README-only
+  commit triggers a rebuild.
+
+---
+
+## Fallbacks
+
+| Breaks | Do |
+|---|---|
+| Minds latency >5s | Cached verdicts for the seeded feed; live calls only on beats 6–7 |
+| Cognition low | Check `minds cognition balance` before every recording session; caching cuts usage ~90% |
+| Cross-session memory flaky | Canon server-side, slice per call — still a legitimate Minds memory story via conversation history |
+| Contradiction detection fuzzy | Cut it; three verdicts demo fine |
+| Feed looks fake | Timestamps, avatars, varied lengths, one comment with a typo |
+| Video overruns | Cut beats 5 and 9 detail. **Never cut beat 8** |
+
+> **Never hardcode fake Mind output.** Caching *real* verdicts is legitimate and
+> documented; fabricated output is fraud and judges read the repo.
+
+---
+
+## Scope guardrail — rejected ideas
+
+These were considered and rejected. If work drifts toward any of them, stop.
+
+- **Multi-genre pipelines** (manga + novels + comics as separate builds) —
+  costs 8–15h, moves zero rubric points, lowers Execution. Breadth is a
+  *positioning* line in the README, not a build.
+- **Continuity QA as the headline** — matches no track; Minds becomes a model
+  swap and fails the sponsor-centrality test.
+- **Discord / Telegram bot** — OAuth + hosting risk. The in-app feed demos
+  better and is fully controlled.
+- **x402 / payments work** — not in this rubric. Cite the live listing as a
+  viability signal; build nothing.
+
+---
+
+## Website: add, don't revamp
+
+The AMOLED design system (`globals.css`, grid, grain, mesh drift, `ui/*`,
+`Cursor`) is an asset and reads premium on video. What's wrong is **copy and
+information architecture**, not visuals.
+
+| Component | Action |
+|---|---|
+| `globals.css`, `layout.tsx`, `ui/*`, `Cursor` | Keep verbatim |
+| `Nav`, `Footer` | Keep, retitle links |
+| `Hero` | Rewrite copy only — same layout, same motion |
+| `Showcase` | Repurpose → canon-memory panel (beat 1) |
+| `Pricing`, `HowToUse` | Move to `/mcp-service`; **do not delete** |
+| `/` (page.tsx) | Becomes the community feed — judges land on the graded thing |
+| `/digest` | New — beat 9 |
+
+Total ≈ 11h additive, vs ≈ 25h for a revamp that scores the same or worse.
+
+---
+
+## Demo video
+
+**No motion graphics.** For a 2-minute hackathon demo, a clean screen recording
+beats amateur motion graphics every time. Budget **8–10h**, not 18.
+
+Stack: **OBS** (or Win+G) → **CapCut** → own voice for VO.
+
+Only four effects needed: one text-overlay preset, a zoom on beat 8
+(two scale keyframes), auto-captions, hard cuts every 2–4s.
+
+Craft rules:
+- 1920×1080, clean desktop, notifications off, bookmarks hidden
+- The AMOLED site reads premium on video for free
+- Move the cursor slowly and deliberately
+- Pre-seed all data so nothing loads on camera
+- Record in segments (see `scripts/record-loops.md` for the existing pattern)
+- Shoot beat 8 five-plus times, keep the best
+- **Write script → record audio → cut picture to audio.** Never the reverse.
+
+Beat sheet (1:30–2:00, required range) — **no-credit edition** (cognition −16.3
+as of C9). All beats filmable offline from cached verdicts + canon lookup.
+**Never fake a live Mind catch** — beat 6 shows the honest "paused — credits"
+state, beat 7 shows the canon answer. If credits land before recording,
+upgrade beat 6 back to the live catch:
+
+| Time | Content |
+|---|---|
+| 0:00–0:15 | Hook — "Every fan community spoils new readers." |
+| 0:15–0:30 | The problem — a comment spoiling a major reveal |
+| 0:30–0:55 | Feed at Episode 30 — c11 sits blurred: "Spoils Episode 47 · you're on 30", click-to-reveal |
+| 0:55–1:15 | **Beat 8** — flip to Episode 50, the same comment un-blurs. Zoom + VO line |
+| 1:15–1:40 | Lore question → click "Answered from canon" → answer cites the episode. Then /digest: 5 spoilers · 3 questions · 2 contradictions |
+| 1:40–2:00 | Impact — any serialized IP, any community; live check shown as "paused until credits" |
+
+Prep: pre-seed the feed (default Episode 30, 3 blurred), pre-answer a canon
+question on screen, pre-load /digest with the SSE ticker running.
+
+`docs/promo-video.md` holds the older 52s x402 beat sheet — **superseded for
+the jam**, kept for the OKX listing.
+
+---
+
+## Reference links
+
+| Purpose | URL |
+|---|---|
+| Repo | https://github.com/emmaGH1/mnemo |
+| Event page / Submit BUIDL | https://dorahacks.io/hackathon/creativeminds/detail |
+| Minds docs hub | https://build.hellominds.ai/en/docs |
+| Account setup / API key | https://build.hellominds.ai/en/docs/get-started/account-setup |
+| Minds CLI | https://build.hellominds.ai/en/docs/get-started/cli |
+| Minds client library | https://build.hellominds.ai/en/docs/get-started/client-library |
+| Minds API reference | https://build.hellominds.ai/docs/api |
+| Etsy Strategist (best reference build) | https://build.hellominds.ai/en/inspirations/etsy-shop-strategist |
+| Investment Programme | https://build.hellominds.ai/en/program |
+| Live `/mcp` endpoint (do not break) | https://mnemo-9vze.onrender.com/mcp |
+| OKX listing #6211 | https://www.okx.ai/agents/6211 |
+
+Packages: `@animocabrands/minds-cli`, `@animocabrands/minds-client-lib`
+Env: `MINDS_BUILDER_API_KEY`

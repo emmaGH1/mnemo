@@ -2,19 +2,20 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import Logo from "./ui/Logo";
-import Pill from "./ui/Pill";
 import MobileMenu from "./MobileMenu";
-import { OKX_AGENT_URL } from "@/config";
 
 const links = [
-  { label: "How to use", href: "#use" },
-  { label: "In action", href: "#watch" },
-  { label: "Pricing", href: "#pricing" },
+  { label: "Workspace", href: "/" },
+  { label: "Project", href: "/projects/lore-olympus" },
+  { label: "Reader preview", href: "/reader" },
+  { label: "Digest", href: "/digest" },
 ];
 
 export default function Nav() {
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
@@ -47,16 +48,21 @@ export default function Nav() {
               <Link
                 key={l.label}
                 href={l.href}
-                className="text-[15px] font-medium text-white/60 transition-colors duration-200 hover:text-white md:text-[16px]"
+                aria-current={pathname === l.href ? "page" : undefined}
+                className={`text-[15px] font-medium transition-colors duration-200 md:text-[16px] ${
+                  pathname === l.href ? "text-white" : "text-white/50 hover:text-white"
+                }`}
               >
                 {l.label}
               </Link>
             ))}
           </div>
 
-          <div className="hidden items-center gap-3 md:flex">
-            <Pill href={OKX_AGENT_URL}>Use on OKX.AI</Pill>
-          </div>
+          <span
+            className="hidden rounded-full border border-white/10 px-3 py-1.5 text-xs font-medium text-white/50 transition hover:border-white/20 hover:text-white md:block"
+          >
+            Private beta
+          </span>
 
           <button
             onClick={() => setOpen(!open)}
