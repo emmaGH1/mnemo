@@ -41,7 +41,6 @@ export default function Digest() {
   const [digest, setDigest] = useState<DigestData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [live, setLive] = useState(false);
 
   useEffect(() => {
     let disposed = false;
@@ -54,20 +53,8 @@ export default function Digest() {
       .catch((e) => !disposed && setError(e instanceof Error ? e.message : String(e)))
       .finally(() => !disposed && setLoading(false));
 
-    const es = new EventSource("/api/digest/stream");
-    es.addEventListener("digest", (ev) => {
-      try {
-        const data = JSON.parse((ev as MessageEvent).data) as DigestData;
-        setDigest(data);
-        setLive(true);
-      } catch {
-        // ignore malformed event
-      }
-    });
-    es.onerror = () => setLive(false);
     return () => {
       disposed = true;
-      es.close();
     };
   }, []);
 
@@ -77,29 +64,25 @@ export default function Digest() {
     <>
       <header className="section-immersive relative mx-auto max-w-4xl px-5 pb-10 pt-20 md:px-8 md:pt-28">
         <p className="font-mono-statement text-[11px] uppercase tracking-[0.18em] text-white/40">
-          Mnemo · autonomy
+          Mnemo · creator view
         </p>
         <h1 className="mt-4 font-display text-4xl font-extrabold tracking-tight text-white md:text-6xl">
-          Overnight digest
+          Moderation digest
         </h1>
         <p className="mt-4 max-w-xl text-base leading-relaxed text-white/50 md:text-lg">
-          While you slept, Mnemo read every comment against the canon memory and
-          graded it for your readers — spoilers relative to their progress, lore
-          questions it can answer, and claims that contradict established canon.
+          A review of the seeded community run: comments classified against canon,
+          spoilers mapped to their reveal episode, and questions queued for a
+          safe answer.
         </p>
 
         <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-2">
           <span className="flex items-center gap-2 font-mono text-[11px] text-white/50">
-            <span
-              className={`h-1.5 w-1.5 rounded-full ${
-                live ? "animate-pulse bg-emerald-400" : "bg-white/30"
-              }`}
-            />
-            {live ? "worker live · recomputing" : "worker idle"}
+            <span className="h-1.5 w-1.5 rounded-full bg-cyan-300" />
+            cached Mind run
           </span>
           {digest && (
             <span className="font-mono text-[11px] text-white/35">
-              last computed {timeLabel(digest.generated_at)}
+              snapshot opened {timeLabel(digest.generated_at)}
             </span>
           )}
         </div>
@@ -181,8 +164,7 @@ export default function Digest() {
             </div>
 
             <p className="pt-2 text-center font-mono text-[10px] uppercase tracking-[0.16em] text-white/25">
-              {c!.total} comments graded · {digest.source} · the canon memory is
-              the same source the live OKX.AI agent uses
+              {c!.total} seeded comments graded · {digest.source} · demo snapshot
             </p>
           </div>
         )}

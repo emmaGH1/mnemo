@@ -22,6 +22,8 @@ export interface ModerationResult {
   verdict: ModerationVerdict;
   /** The establishing episode of the latest revealed fact (spoiler only). */
   spoils_episode?: number;
+  /** Latest canon episode needed to justify a question/contradiction verdict. */
+  evidence_episode?: number;
   reason: string;
 }
 
@@ -31,6 +33,7 @@ export interface CachedVerdict {
   computed_at_reader_episode: number;
   verdict: ModerationVerdict;
   spoils_episode?: number;
+  evidence_episode?: number;
   reason: string;
 }
 
@@ -56,15 +59,34 @@ export function effectiveVerdict(
     return {
       verdict: "spoiler",
       spoils_episode: cached.spoils_episode,
-      reason: cached.reason,
+      reason: `This comment reveals canon established in episode ${cached.spoils_episode}.`,
     };
   }
   if (cached.verdict === "spoiler") {
     return { verdict: "safe", reason: cached.reason };
   }
-  const result: ModerationResult = { verdict: cached.verdict, reason: cached.reason };
+  if (
+    cached.verdict === "contradiction" &&
+    cached.evidence_episode != null &&
+    cached.evidence_episode > readerEpisode
+  ) {
+    return {
+      verdict: "safe",
+      reason: "No moderation issue is visible at your current progress.",
+    };
+  }
+  const safeReason =
+    cached.verdict === "lore_question"
+      ? "Mnemo found a canon-backed answer. Only facts available by your current episode will be shown."
+      : cached.verdict === "contradiction"
+        ? "This claim conflicts with canon established by your current episode."
+        : cached.reason;
+  const result: ModerationResult = { verdict: cached.verdict, reason: safeReason };
   if (cached.spoils_episode != null) {
     result.spoils_episode = cached.spoils_episode;
+  }
+  if (cached.evidence_episode != null) {
+    result.evidence_episode = cached.evidence_episode;
   }
   return result;
 }
@@ -107,7 +129,7 @@ function canonDigest(canon: CanonDoc): string {
 
 function classifyPrompt(canon: CanonDoc, comment: string, readerEpisode: number): string {
   return [
-    "You are Mnemo, the spoiler-aware moderator for the webtoon 'Lore Olympus'.",
+    `You are Mnemo, the spoiler-aware moderator for the series '${canon.series}'.`,
     "Below is the series canon — every fact and the episode that established it.",
     "",
     "=== CANON ===",
@@ -133,7 +155,8 @@ function classifyPrompt(canon: CanonDoc, comment: string, readerEpisode: number)
     "- Never invent facts. If unsure, pick the most defensible verdict.",
     "",
     'Reply with ONLY this JSON (no markdown, no prose):',
-    '{"verdict":"safe|spoiler|lore_question|contradiction","spoils_episode":<number or null>,"reason":"<short reason>"}',
+    "For lore_question or contradiction, evidence_episode is the latest canon episode needed to justify the verdict. For safe/spoiler, set it to null.",
+    '{"verdict":"safe|spoiler|lore_question|contradiction","spoils_episode":<number or null>,"evidence_episode":<number or null>,"reason":"<short reason>"}',
   ].join("\n");
 }
 
@@ -151,10 +174,19 @@ function parseVerdict(reply: string): ModerationResult {
   }
   const result: ModerationResult = {
     verdict: parsed.verdict as ModerationVerdict,
-    reason: parsed.reason ?? "",
+    reason: typeof parsed.reason === "string" ? parsed.reason : "",
   };
   if (parsed.spoils_episode != null) {
+    if (!Number.isInteger(parsed.spoils_episode) || parsed.spoils_episode < 1) {
+      throw new Error(`Invalid spoils_episode in Mind reply: ${reply.slice(0, 200)}`);
+    }
     result.spoils_episode = parsed.spoils_episode;
+  }
+  if (parsed.evidence_episode != null) {
+    if (!Number.isInteger(parsed.evidence_episode) || parsed.evidence_episode < 1) {
+      throw new Error(`Invalid evidence_episode in Mind reply: ${reply.slice(0, 200)}`);
+    }
+    result.evidence_episode = parsed.evidence_episode;
   }
   return result;
 }
@@ -170,8 +202,14 @@ export async function moderate(
   timeoutMs = 120_000
 ): Promise<ModerationResult> {
   const canon = loadCanon(seriesId);
+  if (readerEpisode > canon.last_updated_episode) {
+    throw new Error(
+      `reader_episode ${readerEpisode} exceeds canon episode ${canon.last_updated_episode}`
+    );
+  }
+  const alias = seriesId === "lore-olympus" ? MNEMO_ALIAS : `${MNEMO_ALIAS}-${seriesId}`;
   const reply = await tell(
-    MNEMO_ALIAS,
+    alias,
     MNEMO_MIND_ID,
     classifyPrompt(canon, comment, readerEpisode),
     timeoutMs

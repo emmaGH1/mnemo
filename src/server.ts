@@ -1314,15 +1314,41 @@ const moderationBodySchema = z.object({
   reader_episode: z.number().int().min(1),
   series_id: z.string().regex(/^[a-z0-9_-]+$/).optional(),
 });
+const moderationRateWindows = new Map<string, { count: number; resetAt: number }>();
+
 app.post("/moderation/check", async (req: Request, res: Response) => {
   const parsed = moderationBodySchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.issues.map((i) => i.message) });
     return;
   }
-  const { comment, reader_episode: readerEpisode } = parsed.data;
+  const rateKey = req.ip || "unknown";
+  const now = Date.now();
+  const previousWindow = moderationRateWindows.get(rateKey);
+  const rateWindow =
+    previousWindow && previousWindow.resetAt > now
+      ? previousWindow
+      : { count: 0, resetAt: now + 10 * 60_000 };
+  if (rateWindow.count >= 5) {
+    res.status(429).json({
+      error: "Live moderation limit reached. Try again after the current demo window resets.",
+      retry_after_seconds: Math.ceil((rateWindow.resetAt - now) / 1000),
+    });
+    return;
+  }
+  rateWindow.count += 1;
+  moderationRateWindows.set(rateKey, rateWindow);
+  const {
+    comment,
+    reader_episode: readerEpisode,
+    series_id: seriesId,
+  } = parsed.data;
   try {
-    const result = await moderate(comment, readerEpisode);
+    const result = await moderate(
+      comment,
+      readerEpisode,
+      seriesId ?? "lore-olympus"
+    );
     res.json({ comment, reader_episode: readerEpisode, ...result });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
@@ -1337,6 +1363,10 @@ app.post("/moderation/check", async (req: Request, res: Response) => {
       });
       return;
     }
+    if (/reader_episode \d+ exceeds canon episode \d+/i.test(message)) {
+      res.status(400).json({ error: message });
+      return;
+    }
     res.status(502).json({ error: message });
   }
 });
@@ -1348,6 +1378,7 @@ app.post("/moderation/check", async (req: Request, res: Response) => {
 // on) and labels itself source:"canon". Never fabricates Mind output.
 const canonAnswerSchema = z.object({
   question: z.string().min(3).max(500),
+  reader_episode: z.number().int().min(1),
   series_id: z.string().regex(/^[a-z0-9_-]+$/).optional(),
 });
 app.post("/canon/answer", (req: Request, res: Response) => {
@@ -1356,20 +1387,24 @@ app.post("/canon/answer", (req: Request, res: Response) => {
     res.status(400).json({ error: parsed.error.issues.map((i) => i.message) });
     return;
   }
-  const { question, series_id: seriesId } = parsed.data;
+  const { question, reader_episode: readerEpisode, series_id: seriesId } = parsed.data;
   try {
-    res.json(answerFromCanon(loadCanon(seriesId ?? "lore-olympus"), question));
+    res.json(
+      answerFromCanon(
+        loadCanon(seriesId ?? "lore-olympus"),
+        question,
+        readerEpisode
+      )
+    );
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     res.status(500).json({ error: message });
   }
 });
 
-// ─── GET /digest + /digest/stream  (ungated, demo) ─────────────────────────
-// Beat 9: the "overnight" creator digest. Aggregates the CACHED real Mind
-// verdicts (never a live call) so it works with zero cognition. The SSE stream
-// simulates the unprompted background worker: it recomputes the digest and
-// broadcasts to subscribers on a schedule.
+// ─── GET /digest  (ungated, seeded demo snapshot) ──────────────────────────
+// Creator digest for the seeded demo run. Aggregates cached real Mind verdicts
+// (never a live call) so it remains available with zero cognition.
 interface DigestItem {
   comment_id: string;
   author: string;
@@ -1450,45 +1485,6 @@ app.get("/digest", (req: Request, res: Response) => {
   }
 });
 
-const digestSubscribers = new Set<Response>();
-let digestTimer: NodeJS.Timeout | null = null;
-
-function broadcastDigest(): void {
-  let data: DigestData;
-  try {
-    data = computeDigest("lore-olympus");
-  } catch {
-    return;
-  }
-  const payload = `event: digest\ndata: ${JSON.stringify(data)}\n\n`;
-  for (const res of digestSubscribers) res.write(payload);
-}
-
-app.get("/digest/stream", (req: Request, res: Response) => {
-  res.setHeader("Content-Type", "text/event-stream");
-  res.setHeader("Cache-Control", "no-cache, no-transform");
-  res.setHeader("Connection", "keep-alive");
-  res.flushHeaders();
-  digestSubscribers.add(res);
-  try {
-    res.write(`event: digest\ndata: ${JSON.stringify(computeDigest("lore-olympus"))}\n\n`);
-  } catch {
-    // ignore — client may already be gone
-  }
-  if (!digestTimer) {
-    // ponytail: single shared worker tick for all subscribers; cadence is a
-    // demo stand-in for the "daily" schedule — bump when real scheduling lands.
-    digestTimer = setInterval(broadcastDigest, 45_000);
-  }
-  req.on("close", () => {
-    digestSubscribers.delete(res);
-    if (digestSubscribers.size === 0 && digestTimer) {
-      clearInterval(digestTimer);
-      digestTimer = null;
-    }
-  });
-});
-
 // ─── GET /community/feed  (ungated, demo) ────────────────────────────────────
 // Returns the seeded comments each merged with the verdict effective for the
 // given reader_episode (instant — reads the cached Mind verdicts, no live call).
@@ -1518,9 +1514,48 @@ app.get("/community/feed", (req: Request, res: Response) => {
     const moderation: ModerationResult = cached
       ? effectiveVerdict(cached, readerEpisode)
       : { verdict: "safe", reason: "uncached" };
-    return { ...c, moderation, spoils_episode: moderation.spoils_episode ?? null };
+    if (moderation.verdict === "spoiler") {
+      const { text: _protectedText, ...meta } = c;
+      return {
+        ...meta,
+        text: "",
+        protected: true,
+        moderation,
+        spoils_episode: moderation.spoils_episode ?? null,
+      };
+    }
+    return { ...c, protected: false, moderation, spoils_episode: moderation.spoils_episode ?? null };
   });
   res.json({ series_id: seriesId, reader_episode: readerEpisode, comments: feed });
+});
+
+const revealBodySchema = z.object({
+  comment_id: z.string().min(1).max(100),
+  series_id: z.string().regex(/^[a-z0-9_-]+$/).optional(),
+});
+
+app.post("/community/reveal", (req: Request, res: Response) => {
+  const parsed = revealBodySchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.issues.map((i) => i.message) });
+    return;
+  }
+  const seriesId = parsed.data.series_id ?? "lore-olympus";
+  const commentsPath = path.join(resolveCanonDir(seriesId), "seed-comments.json");
+  if (!fs.existsSync(commentsPath)) {
+    res.status(404).json({ error: `No seeded feed for series "${seriesId}"` });
+    return;
+  }
+  const comments = JSON.parse(fs.readFileSync(commentsPath, "utf-8")).comments as {
+    id: string;
+    text: string;
+  }[];
+  const comment = comments.find((item) => item.id === parsed.data.comment_id);
+  if (!comment) {
+    res.status(404).json({ error: "Comment not found" });
+    return;
+  }
+  res.json({ comment_id: comment.id, text: comment.text });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

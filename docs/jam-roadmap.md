@@ -13,13 +13,14 @@
 
 **Mnemo: spoiler-aware canon intelligence for serialized fiction communities.**
 
-A Minds agent holds a persistent, provenance-tracked canon memory for a
-serialized IP — every character fact, event, and location, *plus the exact
-episode that established it*. That memory powers a community moderator that
-computes **spoiler risk relative to each reader's own progress**.
+A Minds classifier judges community language against a provenance-tracked
+canon — every character fact, event, and location carries the exact episode
+that established it. Together they compute **spoiler risk relative to each
+reader's own progress**.
 
-The core defensible claim: *episode-aware spoiler detection is pure memory.*
-Remove the Mind and the product is impossible.
+The defensible claim: the Mind provides semantic classification beyond keyword
+filters; provenance supplies the episode math. The seeded path caches genuine
+Mind output for speed and reproducibility.
 
 ### Submission form text (926 chars, already drafted)
 
@@ -31,11 +32,11 @@ See the "Tell us about your idea" block in `docs/handover.md`.
 
 | Criterion | Our play |
 |---|---|
-| **Minds Integration Depth** | The Mind's memory *is* the product; spoiler math is impossible without it |
+| **Minds Integration Depth** | The Mind performs semantic classification against grounded canon; cached genuine output powers the seeded path |
 | **Creator-Economy Problem Fit** | Direct hit on Track 3; spoilers + lore load are real creator pain |
 | **Innovation & Creativity** | Episode-aware, progress-relative spoiler detection does not exist |
 | **Execution & Completeness** | Reuse a shipped canon engine; demo one series deeply |
-| **Viability & Scalability** | Any serialized IP; canon engine already live as OKX.AI Agent 6211 |
+| **Viability & Scalability** | The canon schema and per-series moderation conversation can extend to other serialized IP |
 
 ---
 
@@ -75,7 +76,7 @@ Each checkpoint = one commit. Tagged ones are session boundaries and revert poin
 | **C6** | `/community` page: seeded feed + blur/reveal → **`/` is now the feed — slider + blur/reveal + chips verified live, beat 8 works** | — | ✅ done |
 | **C7** | Progress selector → re-evaluation. **Beat 8 works** → **live composer on `/` (beat 6); beat 8 cached flip proven. BLOCKED on live verify: cognition −16.3** | `jam-c7` | ⬜ (code done) |
 | **C8** | Live comment box (beat 6) + lore-question path (beat 7) → **composer (C7) + deterministic `/canon/answer` (source: canon, verified) + clickable chip** | — | ✅ done |
-| **C9** | Autonomy: background worker + SSE + unprompted digest, `/digest` → **`/digest` page + SSE worker ticker from cached verdicts, verified** | `jam-c9` | ✅ done |
+| **C9** | Creator digest from cached verdicts, `/digest` → **honest snapshot UI; no autonomy claim in the no-credit build** | `jam-c9` | ✅ done |
 | **C10** | Copy/IA pass: demo to `/`, marketing to `/mcp-service` → **`/mcp-service` live, `/` stays the feed** | — | ✅ done |
 | **C11** | Video: script → VO → capture → CapCut → captions → **no-credit beat sheet written (recording is user's)** | `jam-c11` | ⬜ (sheet done) |
 | **C12** | README + diagram, **submit branch URL** (no master merge) → **README jam section + honesty notes done; submission is user's** | `jam-submit` | ⬜ (docs done) |

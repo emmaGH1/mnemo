@@ -4,14 +4,11 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import Logo from "./ui/Logo";
-import Pill from "./ui/Pill";
 import MobileMenu from "./MobileMenu";
-import { OKX_AGENT_URL } from "@/config";
 
 const links = [
-  { label: "Community feed", href: "#feed" },
+  { label: "Reader feed", href: "/" },
   { label: "Creator digest", href: "/digest" },
-  { label: "MCP service", href: "/mcp-service" },
 ];
 
 export default function Nav() {
@@ -54,8 +51,9 @@ export default function Nav() {
             ))}
           </div>
 
-          <div className="hidden items-center gap-3 md:flex">
-            <Pill href={OKX_AGENT_URL}>Use on OKX.AI</Pill>
+          <div className="hidden items-center gap-2 font-mono text-[10px] uppercase tracking-[0.14em] text-white/45 md:flex">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-300 shadow-[0_0_10px_rgba(110,231,183,0.7)]" />
+            Canon online
           </div>
 
           <button

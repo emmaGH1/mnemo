@@ -95,30 +95,35 @@
       "comment_id": "c15",
       "computed_at_reader_episode": 1,
       "verdict": "lore_question",
+      "evidence_episode": 1,
       "reason": "Explicit factual question about Persephone's eye color, directly answerable from canon (green, established ep 1). Asking isn't revealing, so not spoiler; no contradiction; not safe because it specifically requests a canon fact. Same question pattern as cycles 27/34/41, all classified lore_question identically."
     },
     {
       "comment_id": "c16",
       "computed_at_reader_episode": 1,
       "verdict": "lore_question",
+      "evidence_episode": 9,
       "reason": "Two factual questions about Hecate's identity and her relationship to Hades. Canon describes Hecate as a witch and Hades' second-in-command at Underworld Corp; her only listed relationship to Hades is best_friend (established ep 9), with no family relationship listed in canon. Asking isn't revealing, so not spoiler; no fact stated in the comment itself, no contradiction; not safe because it explicitly requests canon facts."
     },
     {
       "comment_id": "c17",
       "computed_at_reader_episode": 1,
       "verdict": "lore_question",
+      "evidence_episode": 1,
       "reason": "Explicit factual question about Minthe's species, directly answerable from canon (river nymph/naiad, established ep 1). Asking isn't revealing, so not spoiler; no fact stated in the comment itself, no contradiction; not safe because it specifically requests a canon fact."
     },
     {
       "comment_id": "c18",
       "computed_at_reader_episode": 1,
       "verdict": "contradiction",
+      "evidence_episode": 30,
       "reason": "Comment claims Minthe and Hades are 'literally endgame' and will get married. Canon establishes Hades' love_interest is Persephone (ep 2), Minthe/Hades are on_and_off (ep 2) and toxic (ep 3), and Hades breaks up with Minthe at ep 30. No marriage event between Minthe and Hades exists anywhere in canon. The 'literally endgame' claim directly contradicts established canon. 'gonna get married i can feel it' is speculative framing, but the definitive endgame claim conflicts with canon. Same pattern as cycles 36 and 42 (minthe-married-contradiction)."
     },
     {
       "comment_id": "c19",
       "computed_at_reader_episode": 1,
       "verdict": "contradiction",
+      "evidence_episode": 11,
       "reason": "Comment claims Demeter is 'totally supportive' and 'fine with' Persephone living in the Underworld. Canon establishes Demeter forbids the Underworld at ep 11 - she arrives in Olympus furious and forbids Persephone from setting foot there. The 'supportive / fine with it' claim directly conflicts with canon. Not a spoiler because the comment is making an incorrect claim, not revealing any future canon fact. Same pattern as cycles 28, 36, 43 (demeter-supports-contradiction)."
     },
     {

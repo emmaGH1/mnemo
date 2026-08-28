@@ -30,6 +30,7 @@ export async function getMinds(): Promise<MindsClient> {
 
 /** Fingerprint of the last reply consumed per alias — baseline for the next wait. */
 const lastReplyFingerprint = new Map<string, string>();
+const aliasQueues = new Map<string, Promise<void>>();
 
 /** Max of two fingerprints by their leading timestamp. */
 function newerFingerprint(a: string | undefined, b: string | undefined): string | undefined {
@@ -56,22 +57,36 @@ export async function tell(
   message: string,
   timeoutMs = 120_000
 ): Promise<string> {
-  const minds = await getMinds();
-  await minds.ensureConversation(alias, mindId);
-  const historyBaseline = await minds.getLatestHistoryFingerprint(alias);
-  const afterFingerprint = newerFingerprint(lastReplyFingerprint.get(alias), historyBaseline);
-  await minds.sendMessage({ alias, messageText: message });
-  const outcome = await minds.waitForReply({
-    alias,
-    timeoutMs,
-    afterFingerprint,
-    sentMessageText: message,
+  const previous = aliasQueues.get(alias) ?? Promise.resolve();
+  let release!: () => void;
+  const turnDone = new Promise<void>((resolve) => {
+    release = resolve;
   });
-  if (outcome.timedOut) {
-    throw new Error(`Minds reply timed out after ${timeoutMs}ms (alias "${alias}")`);
+  const queueTail = previous.then(() => turnDone);
+  aliasQueues.set(alias, queueTail);
+  await previous;
+
+  try {
+    const minds = await getMinds();
+    await minds.ensureConversation(alias, mindId);
+    const historyBaseline = await minds.getLatestHistoryFingerprint(alias);
+    const afterFingerprint = newerFingerprint(lastReplyFingerprint.get(alias), historyBaseline);
+    await minds.sendMessage({ alias, messageText: message });
+    const outcome = await minds.waitForReply({
+      alias,
+      timeoutMs,
+      afterFingerprint,
+      sentMessageText: message,
+    });
+    if (outcome.timedOut) {
+      throw new Error(`Minds reply timed out after ${timeoutMs}ms (alias "${alias}")`);
+    }
+    if (outcome.reply.fingerprint) {
+      lastReplyFingerprint.set(alias, outcome.reply.fingerprint);
+    }
+    return outcome.reply.messageText ?? "";
+  } finally {
+    release();
+    if (aliasQueues.get(alias) === queueTail) aliasQueues.delete(alias);
   }
-  if (outcome.reply.fingerprint) {
-    lastReplyFingerprint.set(alias, outcome.reply.fingerprint);
-  }
-  return outcome.reply.messageText ?? "";
 }

@@ -8,6 +8,7 @@ type Verdict = "safe" | "spoiler" | "lore_question" | "contradiction";
 type Moderation = {
   verdict: Verdict;
   spoils_episode?: number;
+  evidence_episode?: number;
   reason: string;
 };
 
@@ -20,6 +21,7 @@ type FeedComment = {
   time: string;
   likes: number;
   replies: number;
+  protected?: boolean;
   moderation: Moderation;
 };
 
@@ -35,6 +37,7 @@ type CanonAnswer = {
   answer: string;
   source: "canon";
   facts: CanonFact[];
+  blocked_until_episode?: number;
 };
 
 const MAX_EPISODE = 50;
@@ -55,7 +58,7 @@ export default function CommunityFeed() {
   const [feed, setFeed] = useState<Feed | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [revealed, setRevealed] = useState<Set<string>>(new Set());
+  const [revealed, setRevealed] = useState<Map<string, string>>(new Map());
   const [draft, setDraft] = useState("");
   const [checking, setChecking] = useState(false);
   const [liveResult, setLiveResult] = useState<{
@@ -77,7 +80,7 @@ export default function CommunityFeed() {
       if (reqId.current !== id) return;
       if (committedEpisode.current !== data.reader_episode) {
         committedEpisode.current = data.reader_episode;
-        setRevealed(new Set());
+        setRevealed(new Map());
       }
       setFeed(data);
     } catch (e) {
@@ -97,7 +100,25 @@ export default function CommunityFeed() {
     load(ep);
   };
 
-  const reveal = (id: string) => setRevealed((prev) => new Set(prev).add(id));
+  const reveal = async (comment: FeedComment) => {
+    if (revealed.has(comment.id)) return;
+    if (!comment.protected) {
+      setRevealed((prev) => new Map(prev).set(comment.id, comment.text));
+      return;
+    }
+    try {
+      const res = await fetch("/api/community/reveal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ comment_id: comment.id }),
+      });
+      const body = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(body?.error ?? `Reveal failed (${res.status})`);
+      setRevealed((prev) => new Map(prev).set(comment.id, body.text as string));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Reveal failed");
+    }
+  };
 
   const submit = async () => {
     const text = draft.trim();
@@ -151,15 +172,15 @@ export default function CommunityFeed() {
     <>
       <header className="section-immersive relative mx-auto max-w-3xl px-5 pb-10 pt-20 md:px-8 md:pt-28">
         <p className="font-mono-statement text-[11px] uppercase tracking-[0.18em] text-white/40">
-          Mnemo · spoiler-aware canon memory
+          Mnemo · reader mode
         </p>
         <h1 className="mt-4 font-display text-4xl font-extrabold tracking-tight text-white md:text-6xl">
           The Lore Olympus community feed
         </h1>
         <p className="mt-4 max-w-xl text-base leading-relaxed text-white/50 md:text-lg">
-          A Minds agent holds the canon — 77 facts across 50 episodes, each with
-          the episode that established it — and reads every comment against it.
-          Comments that reveal a fact past where you are stay blurred.
+          Canon-aware moderation for 77 seeded facts across 50 episodes. Move
+          your progress and the feed changes with you—without exposing the text
+          you have not chosen to reveal.
         </p>
 
         <div className="mt-10 rounded-2xl border border-white/10 bg-black/60 p-5 backdrop-blur-md md:p-6">
@@ -210,6 +231,16 @@ export default function CommunityFeed() {
             aria-label="Reader progress episode"
             className="mt-5 w-full accent-white"
           />
+          {feed && (
+            <div className="mt-5 flex items-center justify-between border-t border-white/8 pt-4 font-mono text-[10px] uppercase tracking-[0.14em]">
+              <span className={feed.comments.some((c) => c.protected) ? "text-rose-200/80" : "text-emerald-200/80"}>
+                {feed.comments.filter((c) => c.protected).length === 0
+                  ? "All seeded comments are clear"
+                  : `${feed.comments.filter((c) => c.protected).length} future reveals held back`}
+              </span>
+              <span className="text-white/30">reader boundary · ep {feed.reader_episode}</span>
+            </div>
+          )}
         </div>
       </header>
 
@@ -217,7 +248,7 @@ export default function CommunityFeed() {
         <div className="rounded-2xl border border-white/10 bg-black/60 p-5 md:p-6">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="font-mono-statement text-[11px] uppercase tracking-[0.18em] text-white/40">
-              Live check · the Mind judges it
+              Live classifier · metered Mind call
             </p>
             <span className="flex items-center gap-1.5 font-mono text-[10px] text-white/40">
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white/50" />
@@ -249,7 +280,7 @@ export default function CommunityFeed() {
               disabled={checking || !draft.trim()}
               className="rounded-full bg-white px-5 py-2 text-sm font-medium text-black transition-colors duration-200 hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              {checking ? "Moderating…" : "Post"}
+              {checking ? "Classifying…" : "Check comment"}
             </button>
           </div>
 
@@ -262,13 +293,20 @@ export default function CommunityFeed() {
           {liveResult && (
             <div className="mt-4">
               <CommentCard
-                comment={liveResult.comment}
+                comment={
+                  revealed.has(liveResult.comment.id)
+                    ? {
+                        ...liveResult.comment,
+                        text: revealed.get(liveResult.comment.id)!,
+                      }
+                    : liveResult.comment
+                }
                 episode={liveResult.reader_episode}
                 blurred={
                   liveResult.comment.moderation.verdict === "spoiler" &&
                   !revealed.has(liveResult.comment.id)
                 }
-                onReveal={() => reveal(liveResult.comment.id)}
+                onReveal={() => void reveal(liveResult.comment)}
                 index={0}
                 alwaysChip
               />
@@ -280,7 +318,7 @@ export default function CommunityFeed() {
       <main id="feed" className="mx-auto max-w-3xl px-5 pb-28 md:px-8">
         <div className="mb-6 flex items-center justify-between">
           <p className="font-mono-statement text-[11px] uppercase tracking-[0.18em] text-white/40">
-            Feed · judged by the real Mind
+            Seeded feed · cached Mind verdicts
           </p>
           <p className="font-mono text-[11px] text-white/35">
             {feed ? `${feed.comments.length} comments` : ""}
@@ -308,10 +346,12 @@ export default function CommunityFeed() {
             {feed.comments.map((c, i) => (
               <CommentCard
                 key={c.id}
-                comment={c}
+                comment={
+                  revealed.has(c.id) ? { ...c, text: revealed.get(c.id)! } : c
+                }
                 episode={feed.reader_episode}
                 blurred={c.moderation.verdict === "spoiler" && !revealed.has(c.id)}
-                onReveal={() => reveal(c.id)}
+                onReveal={() => void reveal(c)}
                 index={i}
               />
             ))}
@@ -351,6 +391,12 @@ function CommentCard({
   const [answerError, setAnswerError] = useState<string | null>(null);
   const [showAnswer, setShowAnswer] = useState(false);
 
+  useEffect(() => {
+    setAnswer(null);
+    setAnswerError(null);
+    setShowAnswer(false);
+  }, [episode]);
+
   const askCanon = async () => {
     if (asking) return;
     if (answer) {
@@ -363,7 +409,7 @@ function CommentCard({
       const res = await fetch("/api/canon/answer", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: c.text }),
+        body: JSON.stringify({ question: c.text, reader_episode: episode }),
       });
       const body = await res.json().catch(() => null);
       if (!res.ok) {
@@ -417,7 +463,7 @@ function CommentCard({
       </div>
 
       {blurred ? (
-        <BlurredText comment={c} episode={episode} onReveal={onReveal} />
+        <BlurredText episode={episode} spoilsEpisode={c.moderation.spoils_episode} onReveal={onReveal} />
       ) : (
         <p className="mt-3 text-sm leading-relaxed text-white/80">{c.text}</p>
       )}
@@ -479,26 +525,27 @@ function CommentCard({
 }
 
 function BlurredText({
-  comment,
   episode,
+  spoilsEpisode,
   onReveal,
 }: {
-  comment: FeedComment;
   episode: number;
+  spoilsEpisode?: number;
   onReveal: () => void;
 }) {
   return (
     <div className="relative mt-3 overflow-hidden rounded-xl border border-rose-400/10 bg-white/[0.03]">
-      <p className="select-none px-4 py-3 text-sm leading-relaxed text-white/70 blur-[5px]">
-        {comment.text}
-      </p>
+      <div aria-hidden className="space-y-2 px-4 py-4 opacity-30">
+        <span className="block h-2 w-11/12 rounded-full bg-white/25" />
+        <span className="block h-2 w-8/12 rounded-full bg-white/15" />
+      </div>
       <button
         onClick={onReveal}
         className="absolute inset-0 flex w-full flex-col items-center justify-center gap-2"
         aria-label="Reveal spoiler comment"
       >
         <span className="rounded-full border border-rose-400/30 bg-rose-400/10 px-3 py-1 text-xs font-medium text-rose-200">
-          Spoils Episode {comment.moderation.spoils_episode} · you're on{" "}
+          Spoils Episode {spoilsEpisode} · you're on{" "}
           {episode}
         </span>
         <span className="text-[10px] uppercase tracking-[0.18em] text-white/50">

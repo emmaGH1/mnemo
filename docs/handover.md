@@ -12,10 +12,10 @@
 
 ## NEXT ACTION
 
-**All build checkpoints done (C0–C12), no-credit edition.** `/` is the
-community feed (beats 1–5, 8), `/digest` is the overnight digest (beat 9),
-`/mcp-service` holds the marketing, `POST /canon/answer` drives beat 7 from
-the canon file (`source: canon`), and `/moderation/check` returns a friendly
+**The no-credit demo path is complete.** `/` is the reader-aware community
+feed, `/digest` is an honest snapshot of the cached moderation run,
+`POST /canon/answer` drives episode-gated lore answers from the canon file
+(`source: canon`), and `/moderation/check` returns a friendly
 `503 kind:"cognition_empty"` when the Mind is out of credits. Everything
 runs with zero cognition; root tsc + frontend tsc clean; all three pages
 render 200.
@@ -127,43 +127,42 @@ discipline section, and a **context-overload protocol**. Created
 | Product | Spoiler-aware community moderator on a canon memory |
 | Community surface | **In-app feed** in the Next.js frontend — no Discord |
 | Demo series | **Lore Olympus**, canon **hand-authored** across ep 1–50 |
-| Landing page | Demo becomes `/`; marketing moves to `/mcp-service` |
-| UI | **Add, don't revamp** — keep the AMOLED design system |
+| Landing page | Demo is `/`; legacy service is direct-link only and absent from jam navigation |
+| UI | **Editorial control room** — keep the AMOLED grid, focus on reader boundary + creator review |
 | Video | Screen recording + CapCut + own voice. **No motion graphics** |
 | Genre breadth | A README/pitch line only. **Not a build** |
 | Branch | `jam/spoiler-guard`; merge to master at C12 after `probe:okx` |
-| Canon memory architecture | **A — Mind owns memory** (cross-session recall proven at C2). Server sends full canon once; subsequent calls rely on conversation history |
-| Moderation grounding | **Hybrid** — C4 gate showed pure conversation-memory recall of *exact establishing episodes* is unreliable (mind misattributed ep-47 facts as pre-30 on a re-run). Each check sends a compact canon digest (server-side canon) + the Mind judges. Narrative memory / autonomy still lives in the Mind |
+| Canon architecture | Provenance-tracked canon is server-side; cross-session Mind recall was proven but is not relied on for exact episode math |
+| Moderation grounding | **Hybrid** — each live check sends a compact canon digest and the Mind performs semantic classification. Cached verdicts power the deterministic seeded demo. No autonomous-worker claim in the no-credit build |
 | `.opencode/` | Gitignored |
 
 ---
 
-## Submission form text (926 chars — verify in the form's counter)
+## Submission form text (revised — verify in the form's counter)
 
 > Serialized fiction lives on reveals — but fan communities have no memory of
 > what was revealed when. New readers get spoiled, creators drown in the same
 > lore questions, and fan theories quietly contradict canon.
 >
-> Mnemo is a Minds agent holding a persistent, provenance-tracked canon memory
-> for any serialized IP: every character fact, event and location, plus the
-> exact episode that established it. It updates its own memory as new chapters
-> drop.
+> Mnemo combines a Minds semantic classifier with a provenance-tracked canon:
+> every character fact, event and location carries the exact episode that
+> established it.
 >
 > That memory powers a spoiler-aware community moderator. It reads each comment
 > against canon and against the reader's own progress, so it can tell that a
 > line spoils episode 47 for someone on episode 30 — then blurs it, answers lore
-> questions from canon, flags contradictions, and sends the creator an
-> unprompted daily digest.
+> questions without exposing later facts, flags contradictions only after the
+> supporting canon is visible, and gives creators a moderation digest.
 >
-> Remove the Mind and the product is impossible: episode-aware spoiler detection
-> is pure memory. The canon engine already ships live as OKX.AI Agent 6211.
+> The Mind supplies semantic judgment beyond keyword filters; the provenance
+> layer supplies exact episode math. The seeded demo caches genuine Mind
+> verdicts so the reader-progress interaction stays fast and reproducible.
 
 **About You / Your Team:**
 
-> Solo builder, student. Built Mnemo — a paid MCP agent for serialized-fiction
-> continuity, listed on OKX.AI as Agent 6211 with a live x402 payment rail on X
-> Layer. Includes a structured canon-memory engine with per-episode provenance,
-> self-updating memory, and a vision consistency pipeline — shipped and live.
+> Solo builder and student. Built Mnemo's structured canon engine, Minds
+> moderation integration, reader-aware feed, episode-gated lore answers, and
+> creator digest end to end.
 
 ---
 

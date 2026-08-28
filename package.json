@@ -20,6 +20,7 @@
     "moderation:prove": "tsx scripts/minds-moderation-prove.ts",
     "moderation:cache": "tsx scripts/minds-verdict-cache.ts",
     "moderation:check-cache": "tsx scripts/check-moderation-cache.ts",
+    "test:spoiler-safety": "tsx scripts/check-spoiler-safety.ts",
     "build": "tsc",
     "start": "node dist/server.js"
   },

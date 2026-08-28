@@ -18,6 +18,7 @@ export interface CanonAnswer {
   answer: string;
   source: "canon";
   facts: CanonFact[];
+  blocked_until_episode?: number;
 }
 
 interface ScoredFact extends CanonFact {
@@ -124,7 +125,11 @@ function flattenCanonFacts(canon: CanonDoc): ScoredFact[] {
 }
 
 /** Answer a lore question deterministically from canon. */
-export function answerFromCanon(canon: CanonDoc, question: string): CanonAnswer {
+export function answerFromCanon(
+  canon: CanonDoc,
+  question: string,
+  readerEpisode: number
+): CanonAnswer {
   const tokens = questionTokens(question);
   const charNames = new Set(canon.characters.map((c) => c.name.toLowerCase()));
   const facts = flattenCanonFacts(canon);
@@ -139,8 +144,26 @@ export function answerFromCanon(canon: CanonDoc, question: string): CanonAnswer 
     }
   }
 
-  const hits = facts.filter((f) => f.score > 0).sort((a, b) => b.score - a.score);
+  const ranked = facts.filter((f) => f.score > 0).sort((a, b) => b.score - a.score);
+  const bestScore = ranked[0]?.score ?? 0;
+  const relevant = ranked.filter((f) => f.score === bestScore);
+  const hits = relevant.filter(
+    (f) => f.established_episode != null && f.established_episode <= readerEpisode
+  );
   if (hits.length === 0) {
+    const firstFutureEpisode = relevant
+      .map((f) => f.established_episode)
+      .filter((ep): ep is number => ep != null && ep > readerEpisode)
+      .sort((a, b) => a - b)[0];
+    if (firstFutureEpisode != null) {
+      return {
+        question,
+        answer: `That answer belongs to later canon. Reach episode ${firstFutureEpisode} to unlock it.`,
+        source: "canon",
+        facts: [],
+        blocked_until_episode: firstFutureEpisode,
+      };
+    }
     return {
       question,
       answer: "No canon fact answers that yet — Mnemo's memory doesn't hold it.",
