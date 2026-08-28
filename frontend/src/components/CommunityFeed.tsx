@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { motion } from "framer-motion";
 
 type Verdict = "safe" | "spoiler" | "lore_question" | "contradiction";
@@ -42,6 +43,7 @@ type CanonAnswer = {
 
 const MAX_EPISODE = 50;
 const DEFAULT_EPISODE = 30;
+const PROOF_COMMENT_ID = "c11";
 
 const ease = [0.32, 0.72, 0, 1] as const;
 
@@ -59,6 +61,8 @@ export default function CommunityFeed() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [revealed, setRevealed] = useState<Map<string, string>>(new Map());
+  const [proofCommentFocused, setProofCommentFocused] = useState(false);
+  const [proofRevealCompleted, setProofRevealCompleted] = useState(false);
   const [draft, setDraft] = useState("");
   const [checking, setChecking] = useState(false);
   const [liveResult, setLiveResult] = useState<{
@@ -96,8 +100,21 @@ export default function CommunityFeed() {
   }, [load]);
 
   const changeEpisode = (ep: number) => {
-    setEpisode(Math.min(MAX_EPISODE, Math.max(1, ep)));
-    load(ep);
+    const nextEpisode = Math.min(MAX_EPISODE, Math.max(1, ep));
+    setEpisode(nextEpisode);
+    if (nextEpisode === DEFAULT_EPISODE) {
+      setProofRevealCompleted(false);
+      setProofCommentFocused(false);
+    }
+    load(nextEpisode);
+  };
+
+  const focusProofComment = () => {
+    setProofCommentFocused(true);
+    document.getElementById(`comment-${PROOF_COMMENT_ID}`)?.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+    });
   };
 
   const reveal = async (comment: FeedComment) => {
@@ -115,10 +132,18 @@ export default function CommunityFeed() {
       const body = await res.json().catch(() => null);
       if (!res.ok) throw new Error(body?.error ?? `Reveal failed (${res.status})`);
       setRevealed((prev) => new Map(prev).set(comment.id, body.text as string));
+      if (comment.id === PROOF_COMMENT_ID) setProofRevealCompleted(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Reveal failed");
     }
   };
+
+  const proofState =
+    episode === 50 && proofRevealCompleted
+      ? 3
+      : proofRevealCompleted
+        ? 2
+        : 1;
 
   const submit = async () => {
     const text = draft.trim();
@@ -183,7 +208,60 @@ export default function CommunityFeed() {
           you have not chosen to reveal.
         </p>
 
-        <div className="mt-10 rounded-2xl border border-white/10 bg-black/60 p-5 backdrop-blur-md md:p-6">
+        <section
+          aria-labelledby="proof-title"
+          className="mt-10 rounded-2xl border border-cyan-300/20 bg-cyan-300/[0.045] p-5 shadow-[0_18px_80px_rgba(34,211,238,0.04)] backdrop-blur-md md:p-6"
+        >
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p className="font-mono-statement text-[10px] uppercase tracking-[0.18em] text-cyan-200/70">
+                Judge path · 30 seconds
+              </p>
+              <h2 id="proof-title" className="mt-2 font-display text-2xl font-bold text-white">
+                Try the proof
+              </h2>
+              <p className="mt-1 max-w-xl text-sm leading-relaxed text-white/55">
+                The same comment is protected at Episode 30, revealed only by
+                consent, then naturally clears when the reader reaches Episode 50.
+              </p>
+            </div>
+            <span className="rounded-full border border-cyan-200/20 px-3 py-1 font-mono text-[10px] uppercase tracking-[0.14em] text-cyan-100/70">
+              step {proofState} / 3
+            </span>
+          </div>
+
+          <ol className="mt-5 grid gap-3 md:grid-cols-3" aria-label="Guided spoiler-safety proof">
+            <ProofStep
+              number="01"
+              label="Start at Episode 30"
+              detail="The future reveal is held back."
+              active={proofState === 1}
+              complete={episode === 30 || proofState > 1}
+              action="Set EP 30"
+              onClick={() => changeEpisode(DEFAULT_EPISODE)}
+            />
+            <ProofStep
+              number="02"
+              label="Reveal one protected comment"
+              detail="Consent reveals the text; nothing is sent in the feed payload."
+              active={proofState === 1 && proofCommentFocused}
+              complete={proofRevealCompleted}
+              action={proofRevealCompleted ? "Revealed" : "Find EP 47 comment"}
+              onClick={focusProofComment}
+            />
+            <ProofStep
+              number="03"
+              label="Move to Episode 50"
+              detail="The protection boundary clears because the reveal is now known."
+              active={proofState === 2}
+              complete={proofState === 3}
+              action="Set EP 50"
+              onClick={() => changeEpisode(50)}
+            />
+          </ol>
+        </section>
+
+        <div className="mt-4 rounded-2xl border border-white/10 bg-black/60 p-5 backdrop-blur-md md:p-6">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
               <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-white/40">
@@ -242,6 +320,36 @@ export default function CommunityFeed() {
             </div>
           )}
         </div>
+
+        <section aria-labelledby="architecture-title" className="mt-6 border-y border-white/10 py-5">
+          <div className="flex flex-wrap items-baseline justify-between gap-3">
+            <div>
+              <p className="font-mono-statement text-[10px] uppercase tracking-[0.18em] text-white/35">
+                What makes the proof work
+              </p>
+              <h2 id="architecture-title" className="mt-1 font-display text-xl font-bold text-white">
+                One moderation run, five connected layers
+              </h2>
+            </div>
+            <Link href="/digest" className="font-mono text-[10px] uppercase tracking-[0.14em] text-cyan-200/80 transition hover:text-cyan-100">
+              See the creator payoff →
+            </Link>
+          </div>
+          <ol className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-3 font-mono text-[10px] uppercase tracking-[0.12em] text-white/55">
+            {[
+              "Continuity engine",
+              "Episode-proven canon",
+              "Minds semantic classifier",
+              "Reader-relative protection",
+              "Creator digest",
+            ].map((layer, index) => (
+              <li key={layer} className="flex items-center gap-2">
+                <span className={index === 3 ? "text-cyan-100" : ""}>{layer}</span>
+                {index < 4 && <span aria-hidden className="text-white/20">→</span>}
+              </li>
+            ))}
+          </ol>
+        </section>
       </header>
 
       <section className="mx-auto max-w-3xl px-5 pb-10 md:px-8">
@@ -353,6 +461,7 @@ export default function CommunityFeed() {
                 blurred={c.moderation.verdict === "spoiler" && !revealed.has(c.id)}
                 onReveal={() => void reveal(c)}
                 index={i}
+                highlighted={c.id === PROOF_COMMENT_ID && proofCommentFocused}
               />
             ))}
             <p className="pt-4 text-center font-mono text-[10px] uppercase tracking-[0.16em] text-white/25">
@@ -360,6 +469,41 @@ export default function CommunityFeed() {
             </p>
           </div>
         )}
+
+        <section className="mt-12 rounded-2xl border border-cyan-300/15 bg-black/55 p-5 md:p-6">
+          <p className="font-mono-statement text-[10px] uppercase tracking-[0.18em] text-cyan-200/70">
+            Reader feed → creator digest
+          </p>
+          <h2 className="mt-2 font-display text-2xl font-bold text-white">
+            The creator sees the same moderation run, not another product.
+          </h2>
+          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/55">
+            Reader protection happens at the moment of conversation. The digest
+            turns those cached Mind verdicts into the creator&rsquo;s review queue:
+            spoilers, lore questions, and disputed canon.
+          </p>
+          <Link
+            href="/digest"
+            className="mt-5 inline-flex rounded-full border border-cyan-200/25 px-4 py-2 text-sm font-medium text-cyan-100 transition hover:border-cyan-200/50 hover:bg-cyan-200/10"
+          >
+            Continue to creator digest →
+          </Link>
+        </section>
+
+        <section className="mt-6 border-t border-white/10 pt-8">
+          <p className="font-mono-statement text-[10px] uppercase tracking-[0.18em] text-white/35">
+            Built on Mnemo&rsquo;s canon engine
+          </p>
+          <h2 className="mt-2 font-display text-2xl font-bold text-white">
+            Continuity checking became the provenance layer.
+          </h2>
+          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-white/55">
+            Mnemo began by checking whether serialized stories stayed consistent.
+            That work established the durable technical foundation here: canon
+            facts carry the episode that proved them. Minds supplies the semantic
+            judgment; the canon engine supplies the exact reader boundary.
+          </p>
+        </section>
       </main>
     </>
   );
@@ -372,6 +516,7 @@ function CommentCard({
   onReveal,
   index,
   alwaysChip = false,
+  highlighted = false,
 }: {
   comment: FeedComment;
   episode: number;
@@ -379,6 +524,7 @@ function CommentCard({
   onReveal: () => void;
   index: number;
   alwaysChip?: boolean;
+  highlighted?: boolean;
 }) {
   const v = c.moderation.verdict;
   const chip =
@@ -428,7 +574,10 @@ function CommentCard({
 
   return (
     <motion.article
-      className="rounded-2xl border border-white/8 bg-black/50 p-4 md:p-5"
+      id={`comment-${c.id}`}
+      className={`rounded-2xl border bg-black/50 p-4 transition-colors md:p-5 ${
+        highlighted ? "border-cyan-300/60 ring-1 ring-cyan-300/25" : "border-white/8"
+      }`}
       initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay: Math.min(index * 0.04, 0.5), ease }}
@@ -521,6 +670,42 @@ function CommentCard({
         </div>
       )}
     </motion.article>
+  );
+}
+
+function ProofStep({
+  number,
+  label,
+  detail,
+  action,
+  active,
+  complete,
+  onClick,
+}: {
+  number: string;
+  label: string;
+  detail: string;
+  action: string;
+  active: boolean;
+  complete: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <li className={`rounded-xl border p-3 ${active ? "border-cyan-300/35 bg-cyan-300/[0.06]" : "border-white/8 bg-black/30"}`}>
+      <div className="flex items-center justify-between gap-2">
+        <span className="font-mono text-[10px] tracking-[0.14em] text-white/35">{number}</span>
+        {complete && <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-emerald-200/80">ready</span>}
+      </div>
+      <p className="mt-2 text-sm font-medium text-white/85">{label}</p>
+      <p className="mt-1 min-h-10 text-xs leading-relaxed text-white/45">{detail}</p>
+      <button
+        type="button"
+        onClick={onClick}
+        className="mt-3 font-mono text-[10px] uppercase tracking-[0.14em] text-cyan-100 transition hover:text-white"
+      >
+        {action} →
+      </button>
+    </li>
   );
 }
 

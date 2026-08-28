@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { motion } from "framer-motion";
 
 type DigestItem = {
@@ -70,9 +71,9 @@ export default function Digest() {
           Moderation digest
         </h1>
         <p className="mt-4 max-w-xl text-base leading-relaxed text-white/50 md:text-lg">
-          A review of the seeded community run: comments classified against canon,
-          spoilers mapped to their reveal episode, and questions queued for a
-          safe answer.
+          The creator payoff of the reader feed: one seeded moderation run,
+          classified against canon, with spoilers mapped to their reveal episode
+          and questions queued for a safe answer.
         </p>
 
         <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-2">
@@ -85,6 +86,18 @@ export default function Digest() {
               snapshot opened {timeLabel(digest.generated_at)}
             </span>
           )}
+        </div>
+
+        <div className="mt-8 flex flex-wrap items-center gap-3">
+          <Link
+            href="/"
+            className="rounded-full border border-white/15 px-4 py-2 text-sm font-medium text-white/70 transition hover:border-white/30 hover:text-white"
+          >
+            ← Return to reader proof
+          </Link>
+          <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-cyan-200/70">
+            Reader feed → creator digest
+          </p>
         </div>
       </header>
 
@@ -129,6 +142,11 @@ export default function Digest() {
                 index={2}
               />
             </div>
+
+            <p className="rounded-xl border border-white/10 bg-white/[0.025] px-4 py-3 text-sm leading-relaxed text-white/55">
+              These are the same cached Mind verdicts that protect readers in
+              the feed. The digest changes the audience, not the moderation run.
+            </p>
 
             {digest.worst_spoiler && (
               <motion.div

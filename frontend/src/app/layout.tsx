@@ -30,9 +30,9 @@ const oi = Oi({
 });
 
 export const metadata: Metadata = {
-  title: "Mnemo",
+  title: "Mnemo — Spoiler-aware canon intelligence",
   description:
-    "Catch continuity breaks before your readers do. Mnemo reads every page you ship, flags what doesn't match, and remembers so you never have to.",
+    "Reader-relative spoiler protection powered by episode-proven canon and Minds semantic classification.",
 };
 
 export default function RootLayout({

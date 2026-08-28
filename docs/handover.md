@@ -4,41 +4,41 @@
 > be enough to resume cold. If they aren't, this doc is under-written — fix it
 > before ending your session.
 
-**Last updated**: 2026-08-28, post-review hardening complete
+**Last updated**: 2026-08-28, judge-story pass complete (local verification)
 **Branch**: `jam/spoiler-guard` (do **not** commit jam work to `master`)
 **Last tag**: `jam-c9`
-**Latest product commit**: `b6a9d3e` (`fix: harden spoiler guard and refocus jam UI`)
+**Latest product commit**: judge-story pass checkpoint (see current branch log
+for its local commit hash)
 
 ---
 
 ## NEXT ACTION
 
-**Goal: complete a focused four-hour judge-story pass.** The core product and
-spoiler-safety boundary are working. Do not add infrastructure, restore the
-legacy OKX/MCP service to the primary navigation, or attempt a broad redesign.
+**Goal: record the focused judge story, then submit the branch.** The core
+product and spoiler-safety boundary are working. Do not add infrastructure,
+restore the legacy OKX/MCP service to the primary navigation, or attempt a
+broad redesign.
 
 **Locked framing:** Mnemo began as a serialized-fiction continuity engine. Its
 episode-proven canon now powers a Minds-based, reader-relative moderation
 layer. The continuity/OKX lineage is credibility and foundation proof — not a
 second product, headline, navigation item, or competing call to action.
 
-**Implement next, in this order:**
-1. Add a compact **“Try the proof”** guide above the reader-progress control:
-   set episode 30 → reveal one protected comment deliberately → move to episode
-   50 and watch the boundary clear. A first-time judge should know what to do
-   within 10 seconds.
-2. Add a small architecture strip explaining the real flow:
+**Judge-story pass completed:**
+1. The compact **“Try the proof”** rail sits above reader progress and guides
+   Episode 30 → intentional c11 reveal → Episode 50. The source comment is
+   focused and highlighted; the reveal remains a deliberate action.
+2. The reader page now states the full architecture:
    **continuity engine → episode-proven canon → Minds semantic classifier →
    reader-relative protection → creator digest**.
-3. Add one restrained foundation section near the bottom, such as **“Built on
-   Mnemo’s canon engine.”** Explain that the original continuity checker
-   supplied the provenance layer. Do not add an OKX button or restore its nav
-   entry; `/mcp-service` remains direct-link only.
-4. Tighten the narrative from **Reader Feed → Creator Digest** so the second
-   page reads as the creator payoff of the same moderation run, not a separate
-   dashboard.
-5. Run the root and frontend production builds plus spoiler-safety checks,
-   inspect the complete flow in the browser, then record the demo and submit.
+3. The restrained **“Built on Mnemo’s canon engine”** section explains the
+   continuity-checker provenance layer without introducing any OKX/MCP route,
+   button, or competing navigation.
+4. Reader Feed → Creator Digest is explicit in both directions and the digest
+   identifies itself as the creator payoff of the exact same cached run.
+5. Root + frontend production builds, spoiler safety, continuity, moderation
+   cache, and applicable payment tests passed. Browser inspection completed the
+   guided journey with no console errors.
 
 **Success criteria:**
 - The promise and first interaction are obvious in under 10 seconds.
