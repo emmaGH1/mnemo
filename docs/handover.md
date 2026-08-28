@@ -4,31 +4,64 @@
 > be enough to resume cold. If they aren't, this doc is under-written — fix it
 > before ending your session.
 
-**Last updated**: 2026-08-25, end of C12
+**Last updated**: 2026-08-28, post-review hardening complete
 **Branch**: `jam/spoiler-guard` (do **not** commit jam work to `master`)
 **Last tag**: `jam-c9`
+**Latest product commit**: `b6a9d3e` (`fix: harden spoiler guard and refocus jam UI`)
 
 ---
 
 ## NEXT ACTION
 
-**The no-credit demo path is complete.** `/` is the reader-aware community
-feed, `/digest` is an honest snapshot of the cached moderation run,
-`POST /canon/answer` drives episode-gated lore answers from the canon file
-(`source: canon`), and `/moderation/check` returns a friendly
-`503 kind:"cognition_empty"` when the Mind is out of credits. Everything
-runs with zero cognition; root tsc + frontend tsc clean; all three pages
-render 200.
+**Goal: complete a focused four-hour judge-story pass.** The core product and
+spoiler-safety boundary are working. Do not add infrastructure, restore the
+legacy OKX/MCP service to the primary navigation, or attempt a broad redesign.
 
-**Remaining (user):**
-1. Record the video — use the no-credit beat sheet in `docs/jam-roadmap.md`
-   (beats 1–5, 8, 9; never fake a live catch). If credits land first, upgrade
-   beat 6 to the live catch.
-2. Top up cognition (balance −16.3) only if you want live beats 6/7 on camera.
+**Locked framing:** Mnemo began as a serialized-fiction continuity engine. Its
+episode-proven canon now powers a Minds-based, reader-relative moderation
+layer. The continuity/OKX lineage is credibility and foundation proof — not a
+second product, headline, navigation item, or competing call to action.
+
+**Implement next, in this order:**
+1. Add a compact **“Try the proof”** guide above the reader-progress control:
+   set episode 30 → reveal one protected comment deliberately → move to episode
+   50 and watch the boundary clear. A first-time judge should know what to do
+   within 10 seconds.
+2. Add a small architecture strip explaining the real flow:
+   **continuity engine → episode-proven canon → Minds semantic classifier →
+   reader-relative protection → creator digest**.
+3. Add one restrained foundation section near the bottom, such as **“Built on
+   Mnemo’s canon engine.”** Explain that the original continuity checker
+   supplied the provenance layer. Do not add an OKX button or restore its nav
+   entry; `/mcp-service` remains direct-link only.
+4. Tighten the narrative from **Reader Feed → Creator Digest** so the second
+   page reads as the creator payoff of the same moderation run, not a separate
+   dashboard.
+5. Run the root and frontend production builds plus spoiler-safety checks,
+   inspect the complete flow in the browser, then record the demo and submit.
+
+**Success criteria:**
+- The promise and first interaction are obvious in under 10 seconds.
+- A judge understands what Minds contributes and what the provenance engine
+  contributes in under 20 seconds.
+- Episode 30 → explicit reveal → episode 50 is the hero proof.
+- The continuity origin reads as technical credibility, not product confusion.
+- Cached and metered behavior remain labeled honestly; there are no fake-live
+  or autonomous-worker claims.
+
+**Scope guardrail:** no auth, database migration, multi-series system, Discord
+bot, full visual revamp, new OKX work, or legacy-service cleanup before the
+demo. Those are post-hackathon tasks.
+
+**After the UI pass (user):**
+1. Record the video around the episode 30 → reveal → episode 50 journey, then
+   show the creator digest and architecture/foundation proof.
+2. Top up cognition (balance was −16.3 at last check) only if an honestly live
+   classification shot is worth the risk; the cached proof path is complete.
 3. Create the **draft BUIDL** with the form text below, then submit the
    **branch URL**: `https://github.com/emmaGH1/mnemo/tree/jam/spoiler-guard`
-   — **do not merge to `master`** (Render auto-deploys it; a rebuild failure
-   takes OKX listing #6211 down mid-review).
+   — **do not merge to `master`** while the legacy Render deployment remains
+   tied to `master`.
 
 ### Also owed by the user (not code)
 
@@ -41,6 +74,29 @@ render 200.
 ---
 
 ## What just happened (this session)
+
+**Post-review hardening — product refocus and real spoiler boundary.** Commit
+`b6a9d3e` hides OKX/MCP from the jam desktop/mobile navigation and footer while
+retaining `/mcp-service` as a direct legacy route. The reader feed and creator
+digest were reframed as one editorial control room, with cached versus metered
+behavior labeled explicitly. Protected spoiler text is no longer shipped in
+the initial `/community/feed` response; the client fetches it from
+`/community/reveal` only after deliberate consent. `/canon/answer` now requires
+`reader_episode` and filters future canon, contradiction evidence is gated by
+episode, and model-supplied episode fields are validated. Mind calls are
+serialized per alias, `series_id` is forwarded, and live moderation is limited
+to 5 requests per 10 minutes per IP. The fake digest SSE worker was removed.
+Added `scripts/check-spoiler-safety.ts` and `npm run test:spoiler-safety`.
+
+Verification completed: root build, frontend production build, cache check,
+spoiler-safety check, continuity tests, and payment-gate tests passed (the paid
+external path was skipped because OKX was unreachable). Runtime checks showed
+episode 1: five protected/zero contradictions; episode 30: three protected and
+protected text absent from the feed payload; episode 50: zero protected;
+Hecate lore remains locked until episode 9; the sixth live moderation request
+returns 429. Browser testing completed without console errors. At the time of
+handover, the branch is at least one local commit ahead of origin because the
+hardening commit has not been pushed.
 
 **C5 — verdict cache, real Mind output.** Authored
 `data/series/lore-olympus/seed-comments.json` — 20 authored fan comments with
